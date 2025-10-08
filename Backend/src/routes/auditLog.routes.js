@@ -1,17 +1,13 @@
 import express from 'express';
 import {
-  getUserNotifications,
-  markAsRead,
-  markAllAsRead,
-  deleteNotification,
-  sendNotification,
-  sendBroadcastNotification,
-  getNotificationStats,
-  sendSessionReminder,
-  sendFeedbackRequest,
-  clearExpiredNotifications,
-  getUnreadCount
-} from '../controllers/notification.controller.js';
+  getAllAuditLogs,
+  getAuditLogsByUser,
+  getAuditLogsByAction,
+  getAuditLogsByDateRange,
+  exportAuditLogs,
+  getAuditSummary,
+  searchAuditLogs
+} from '../controllers/auditLog.controller.js';
 import { authMiddleware } from '../middleware/auth.middleware.js';
 import { roleMiddleware } from '../middleware/role.middleware.js';
 
@@ -20,21 +16,16 @@ const router = express.Router();
 // All routes require authentication
 router.use(authMiddleware);
 
-// User notification management
-router.get('/', getUserNotifications);
-router.get('/unread-count', getUnreadCount);
-router.patch('/:notificationId/read', markAsRead);
-router.patch('/read-all', markAllAsRead);
-router.delete('/:notificationId', deleteNotification);
+// Role-based access to audit logs
+router.get('/', getAllAuditLogs);
+router.get('/search', searchAuditLogs);
+router.get('/summary', getAuditSummary);
+router.get('/user/:userId', getAuditLogsByUser);
+router.get('/action/:action', getAuditLogsByAction);
+router.get('/date-range', getAuditLogsByDateRange);
 
-// Send notifications (admin and practitioner only)
-router.post('/send', roleMiddleware(['admin', 'practitioner']), sendNotification);
-router.post('/broadcast', roleMiddleware(['admin']), sendBroadcastNotification);
-router.post('/session-reminder', roleMiddleware(['admin']), sendSessionReminder);
-router.post('/feedback-request', roleMiddleware(['admin', 'practitioner']), sendFeedbackRequest);
-
-// Admin-only management
-router.get('/stats', roleMiddleware(['admin']), getNotificationStats);
-router.delete('/clear-expired', roleMiddleware(['admin']), clearExpiredNotifications);
+// Admin-only routes
+// router.get('/system', roleMiddleware(['admin']), getSystemLogs);
+router.get('/export', roleMiddleware(['admin']), exportAuditLogs);
 
 export default router;

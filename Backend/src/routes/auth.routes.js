@@ -7,9 +7,7 @@ import {
   logout,
   refreshAccessToken,
   changePassword,
-  getCurrentUser,
-  forgotPassword,
-  resetPassword
+  getCurrentUser
 } from '../controllers/auth.controller.js';
 import { authMiddleware } from '../middleware/auth.middleware.js';
 
@@ -20,8 +18,11 @@ router.post('/register/patient', registerPatient);
 router.post('/register/practitioner', registerPractitioner);
 router.post('/register/admin', registerAdmin);
 router.post('/login', login);
-router.post('/forgot-password', forgotPassword);
-router.post('/reset-password', resetPassword);
+
+//abhi krna h isko
+
+//router.post('/forgot-password', forgotPassword);
+//router.post('/reset-password', resetPassword);
 
 // Protected routes
 router.post('/logout', authMiddleware, logout);

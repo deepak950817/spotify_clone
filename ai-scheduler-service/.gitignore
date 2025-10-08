@@ -1,0 +1,58 @@
+# --- Python cache & build ---
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+build/
+dist/
+
+# --- Virtual environment ---
+.venv/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# --- IDE / Editor ---
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- OS files ---
+.DS_Store
+Thumbs.db
+
+# --- Logs & local data ---
+*.log
+logs/
+data/
+tmp/
+.cache/
+*.sqlite3
+
+# --- Environment variables ---
+.env
+*.env
+
+# --- Model files ---
+*.joblib
+*.pkl
+*.h5
+*.model
+model_checkpoints/
+checkpoints/
+
+# --- FastAPI / Uvicorn ---
+*.pid
+
+# --- Jupyter / Notebooks ---
+*.ipynb_checkpoints/
+
+# --- Docker ---
+*.dockerfile
+docker-compose.override.yml

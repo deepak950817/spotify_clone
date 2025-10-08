@@ -22,7 +22,7 @@ const router = express.Router();
 
 // All routes require patient authentication
 router.use(authMiddleware);
-router.use(roleMiddleware(['patient']));
+router.use(roleMiddleware(['patient']));  //dikkat pr hta denge
 
 // Profile routes
 router.get('/profile', getProfile);
@@ -44,7 +44,7 @@ router.put('/availability', updateAvailability);
 
 // Session routes
 router.get('/sessions/upcoming', getUpcomingSessions);
-router.get('/sessions/history', getSessionHistory);
+router.get('/sessions/history', getSessionHistory);  //status lena h
 
 // Progress routes
 router.get('/progress', getProgress);

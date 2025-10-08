@@ -1,5 +1,5 @@
-const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
+import mongoose from 'mongoose';
+import bcrypt from 'bcryptjs';
 import { userMethodsPlugin } from './UserMethods.js';
 
 const practitionerSchema = new mongoose.Schema({
@@ -21,21 +21,32 @@ const practitionerSchema = new mongoose.Schema({
     year: Number,
     certificateUrl: String
   }],
-  workingHours: [{
+  workingHours: {
+  type: [{
     dayOfWeek: { type: Number, min: 0, max: 6 },
     startTime: String,
     endTime: String,
-    isActive: { type: Boolean, default: true },
-    validate: {
-      validator: function() {
-        if (!this.startTime || !this.endTime) return true;
-        return this.startTime < this.endTime;
-      },
-      message: 'endTime must be greater than startTime'
-    }
+    isActive: { type: Boolean, default: true }
   }],
+  validate: {
+    validator: function(hours) {
+      // Validate that for each item, endTime > startTime
+      return hours.every(h =>
+        !h.startTime || !h.endTime || h.startTime < h.endTime
+      );
+    },
+    message: 'endTime must be greater than startTime for all days'
+  }
+}
+,
   maxPatientsPerDay: { type: Number, default: 10, min: 1 },
-  durationEstimates: { type: Map, of: Number }, // therapyType -> duration in minutes
+  durationEstimates: { type: Map, of: Number }, 
+  // durationEstimates: {
+  //   "Abhyanga": 60,
+  //   "Shirodhara": 45,
+  //   "Nasya": 30
+  // }
+  // therapyType -> duration in minutes
   centerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Center', required: true, index: true },
   bio: { type: String, maxlength: 500 },
   languages: [{ type: String, default: ['English', 'Hindi'] }],

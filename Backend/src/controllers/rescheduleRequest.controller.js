@@ -1,7 +1,7 @@
 import asyncHandler from '../utils/asyncHandler.js';
 import ApiResponse from '../utils/ApiResponse.js';
 import ApiError from '../utils/ApiError.js';
-import RescheduleRequest from '../models/RescheduleRequest.model.js';
+import RescheduleRequest from '../models/RescheduleRequest.models.js';
 import Session from '../models/Session.models.js';
 import AuditLog from '../models/AuditLog.models.js';
 import Notification from '../models/Notification.models.js';
@@ -73,6 +73,7 @@ export const createRequest = asyncHandler(async (req, res) => {
     action: 'create',
     resourceType: 'RescheduleRequest',
     resourceId: rescheduleRequest._id,
+    centerId: req.user.centerId,
     description: 'Reschedule request created',
     details: { sessionId, newDate, reason },
     ipAddress: req.ip
@@ -223,6 +224,7 @@ export const approveRequest = asyncHandler(async (req, res) => {
     userId: req.user._id,
     userModel: 'Admin',
     action: 'update',
+    centerId: req.user.centerId,
     resourceType: 'RescheduleRequest',
     resourceId: requestId,
     description: 'Reschedule request approved',
@@ -280,6 +282,7 @@ export const rejectRequest = asyncHandler(async (req, res) => {
     userId: req.user._id,
     userModel: 'Admin',
     action: 'update',
+    centerId: req.user.centerId,
     resourceType: 'RescheduleRequest',
     resourceId: requestId,
     description: 'Reschedule request rejected',
@@ -401,6 +404,7 @@ export const addReviewNotes = asyncHandler(async (req, res) => {
     userId: req.user._id,
     userModel: 'Admin',
     action: 'update',
+    centerId: req.user.centerId,
     resourceType: 'RescheduleRequest',
     resourceId: requestId,
     description: 'Review notes added to reschedule request',
@@ -439,6 +443,7 @@ export const cancelRequest = asyncHandler(async (req, res) => {
     userModel: req.user.role.charAt(0).toUpperCase() + req.user.role.slice(1),
     action: 'update',
     resourceType: 'RescheduleRequest',
+    centerId: req.user.centerId,
     resourceId: requestId,
     description: 'Reschedule request cancelled by requester',
     ipAddress: req.ip

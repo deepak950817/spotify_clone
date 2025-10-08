@@ -245,7 +245,7 @@ export const getDashboard = asyncHandler(async (req, res) => {
     recentFeedbacks,
     monthlyStats
   ] = await Promise.all([
-    Patient.countDocuments({ isActive: true }),
+    Patient.countDocuments({ centerIdisActive: true }),
     Practitioner.countDocuments({ centerId, isActive: true }),
     Session.countDocuments({ centerId }),
     Session.countDocuments({ 
@@ -303,6 +303,7 @@ export const createPractitioner = asyncHandler(async (req, res) => {
     userId: req.user._id,
     userModel: 'Admin',
     action: 'create',
+    centerId: centerId,
     resourceType: 'Practitioner',
     resourceId: practitioner._id,
     description: 'Practitioner created by admin',
@@ -344,64 +345,10 @@ export const getAllPractitioners = asyncHandler(async (req, res) => {
   );
 });
 
-export const updatePractitioner = asyncHandler(async (req, res) => {
-  const { practitionerId } = req.params;
-  const updateData = req.body;
-
-  const practitioner = await Practitioner.findOneAndUpdate(
-    { _id: practitionerId, centerId: req.user.centerId },
-    updateData,
-    { new: true, runValidators: true }
-  ).select('-passwordHash -refreshToken');
-
-  if (!practitioner) throw new ApiError(404, 'Practitioner not found');
-
-  await AuditLog.create({
-    userId: req.user._id,
-    userModel: 'Admin',
-    action: 'update',
-    resourceType: 'Practitioner',
-    resourceId: practitionerId,
-    description: 'Practitioner updated by admin',
-    details: updateData,
-    ipAddress: req.ip
-  });
-
-  res.status(200).json(
-    new ApiResponse(200, practitioner, "Practitioner updated successfully")
-  );
-});
-
-export const deactivatePractitioner = asyncHandler(async (req, res) => {
-  const { practitionerId } = req.params;
-
-  const practitioner = await Practitioner.findOneAndUpdate(
-    { _id: practitionerId, centerId: req.user.centerId },
-    { isActive: false },
-    { new: true }
-  ).select('-passwordHash -refreshToken');
-
-  if (!practitioner) throw new ApiError(404, 'Practitioner not found');
-
-  await AuditLog.create({
-    userId: req.user._id,
-    userModel: 'Admin',
-    action: 'update',
-    resourceType: 'Practitioner',
-    resourceId: practitionerId,
-    description: 'Practitioner deactivated by admin',
-    ipAddress: req.ip
-  });
-
-  res.status(200).json(
-    new ApiResponse(200, practitioner, "Practitioner deactivated successfully")
-  );
-});
-
 export const getAllPatients = asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, search } = req.query;
 
-  const filter = { isActive: true };
+  const filter = { centerId: req.user.centerId, isActive: true };
   if (search) {
     filter.$or = [
       { name: { $regex: search, $options: 'i' } },
@@ -428,59 +375,6 @@ export const getAllPatients = asyncHandler(async (req, res) => {
   );
 });
 
-export const updatePatient = asyncHandler(async (req, res) => {
-  const { patientId } = req.params;
-  const updateData = req.body;
-
-  const patient = await Patient.findByIdAndUpdate(
-    patientId,
-    updateData,
-    { new: true, runValidators: true }
-  ).select('-passwordHash -refreshToken');
-
-  if (!patient) throw new ApiError(404, 'Patient not found');
-
-  await AuditLog.create({
-    userId: req.user._id,
-    userModel: 'Admin',
-    action: 'update',
-    resourceType: 'Patient',
-    resourceId: patientId,
-    description: 'Patient updated by admin',
-    details: updateData,
-    ipAddress: req.ip
-  });
-
-  res.status(200).json(
-    new ApiResponse(200, patient, "Patient updated successfully")
-  );
-});
-
-export const deactivatePatient = asyncHandler(async (req, res) => {
-  const { patientId } = req.params;
-
-  const patient = await Patient.findByIdAndUpdate(
-    patientId,
-    { isActive: false },
-    { new: true }
-  ).select('-passwordHash -refreshToken');
-
-  if (!patient) throw new ApiError(404, 'Patient not found');
-
-  await AuditLog.create({
-    userId: req.user._id,
-    userModel: 'Admin',
-    action: 'update',
-    resourceType: 'Patient',
-    resourceId: patientId,
-    description: 'Patient deactivated by admin',
-    ipAddress: req.ip
-  });
-
-  res.status(200).json(
-    new ApiResponse(200, patient, "Patient deactivated successfully")
-  );
-});
 
 export const getAllSessions = asyncHandler(async (req, res) => {
   const { centerId } = req.user;
@@ -526,6 +420,7 @@ export const forceBookSession = asyncHandler(async (req, res) => {
     userModel: 'Admin',
     action: 'create',
     resourceType: 'Session',
+    centerId: centerId,
     resourceId: session._id,
     description: 'Session force booked by admin',
     details: sessionData,
@@ -561,6 +456,7 @@ export const reassignPractitioner = asyncHandler(async (req, res) => {
     action: 'update',
     resourceType: 'Session',
     resourceId: sessionId,
+    centerId: req.user.centerId,
     description: 'Practitioner reassigned by admin',
     details: { newPractitionerId: practitionerId },
     ipAddress: req.ip
@@ -568,48 +464,6 @@ export const reassignPractitioner = asyncHandler(async (req, res) => {
 
   res.status(200).json(
     new ApiResponse(200, session, "Practitioner reassigned successfully")
-  );
-});
-
-export const bulkReschedule = asyncHandler(async (req, res) => {
-  const { centerId } = req.user;
-  const { sessionIds, newDate, reason } = req.body;
-
-  const sessions = await Session.find({ 
-    _id: { $in: sessionIds }, 
-    centerId 
-  });
-
-  if (sessions.length !== sessionIds.length) {
-    throw new ApiError(404, 'Some sessions not found');
-  }
-
-  const updatePromises = sessions.map(session => 
-    Session.findByIdAndUpdate(
-      session._id,
-      { 
-        scheduledStart: newDate,
-        scheduledEnd: new Date(newDate.getTime() + session.durationMinutes * 60000),
-        status: 'rescheduled'
-      },
-      { new: true }
-    )
-  );
-
-  const updatedSessions = await Promise.all(updatePromises);
-
-  await AuditLog.create({
-    userId: req.user._id,
-    userModel: 'Admin',
-    action: 'update',
-    resourceType: 'Session',
-    description: 'Bulk reschedule performed by admin',
-    details: { sessionIds, newDate, reason },
-    ipAddress: req.ip
-  });
-
-  res.status(200).json(
-    new ApiResponse(200, updatedSessions, "Bulk reschedule completed successfully")
   );
 });
 
@@ -774,6 +628,7 @@ export const sendBroadcastNotification = asyncHandler(async (req, res) => {
     action: 'create',
     resourceType: 'Notification',
     description: 'Broadcast notification sent',
+    centerId: req.user.centerId,
     details: { 
       targetUsers, 
       userModels, 
@@ -796,7 +651,7 @@ export const sendBroadcastNotification = asyncHandler(async (req, res) => {
 export const getAuditLogs = asyncHandler(async (req, res) => {
   const { page = 1, limit = 20, action, userModel, startDate, endDate } = req.query;
 
-  const filter = {};
+  const filter = {centerId: req.user.centerId };
   if (action) filter.action = action;
   if (userModel) filter.userModel = userModel;
   if (startDate || endDate) {

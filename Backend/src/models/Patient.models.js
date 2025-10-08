@@ -1,5 +1,5 @@
-const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
+import mongoose from 'mongoose';
+import bcrypt from 'bcryptjs';
 import { userMethodsPlugin } from './UserMethods.js';
 
 const patientSchema = new mongoose.Schema({
@@ -51,6 +51,12 @@ const patientSchema = new mongoose.Schema({
     relationship: String,
     phone: String
   },
+  centerId: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: 'Center',
+  required: false, // some system actions may not belong to a center
+  index: true
+},
   refreshToken: { type: String, default: null },
   timezone: { type: String, default: 'Asia/Kolkata' },
   profileImage: { url: String, publicId: String },

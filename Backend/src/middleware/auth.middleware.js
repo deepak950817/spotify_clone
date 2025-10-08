@@ -18,13 +18,13 @@ export const authMiddleware = asyncHandler(async (req, res, next) => {
     let user;
     switch (decodedToken.role) {
       case 'patient':
-        user = await Patient.findById(decodedToken.id);
+        user = await Patient.findById(decodedToken.id).select('-passwordHash -refreshToken');
         break;
       case 'practitioner':
-        user = await Practitioner.findById(decodedToken.id);
+        user = await Practitioner.findById(decodedToken.id).select('-passwordHash -refreshToken');
         break;
       case 'admin':
-        user = await Admin.findById(decodedToken.id);
+        user = await Admin.findById(decodedToken.id).select('-passwordHash -refreshToken');
         break;
       default:
         throw new ApiError(401, 'Invalid user role');
@@ -35,6 +35,7 @@ export const authMiddleware = asyncHandler(async (req, res, next) => {
     }
 
     req.user = user;
+     req.centerId = user.centerId;
     next();
   } catch (error) {
     throw new ApiError(401, error?.message || 'Invalid access token');

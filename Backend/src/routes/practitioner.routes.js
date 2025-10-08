@@ -36,7 +36,7 @@ router.get('/specializations', getSpecializations);
 router.put('/specializations', updateSpecializations);
 
 // Working hours routes
-router.get('/working-hours', getWorkingHours);
+router.get('/working-hours', getWorkingHours);  //sbse phle get krenge
 router.put('/working-hours', updateWorkingHours);
 
 // Duration estimates
@@ -46,7 +46,7 @@ router.put('/duration-estimates', updateDurationEstimates);
 router.get('/sessions/upcoming', getUpcomingSessions);
 router.get('/sessions/completed', getCompletedSessions);
 router.patch('/sessions/:sessionId/complete', markSessionComplete);
-router.patch('/sessions/:sessionId/outcome', addSessionOutcome);
+router.patch('/sessions/:sessionId/outcome', addSessionOutcome); //isko itna use nhi krna
 
 // Patient routes
 router.get('/patients', getAssignedPatients);

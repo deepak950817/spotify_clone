@@ -3,15 +3,10 @@ import {
   getDashboard,
   createPractitioner,
   getAllPractitioners,
-  updatePractitioner,
-  deactivatePractitioner,
   getAllPatients,
-  updatePatient,
-  deactivatePatient,
   getAllSessions,
   forceBookSession,
   reassignPractitioner,
-  bulkReschedule,
   getFeedbackReports,
   getPractitionerAnalytics,
   sendBroadcastNotification,
@@ -32,19 +27,14 @@ router.get('/dashboard', getDashboard);
 // Practitioner management routes
 router.post('/practitioners', createPractitioner);
 router.get('/practitioners', getAllPractitioners);
-router.put('/practitioners/:practitionerId', updatePractitioner);
-router.patch('/practitioners/:practitionerId/deactivate', deactivatePractitioner);
 
 // Patient management routes
 router.get('/patients', getAllPatients);
-router.put('/patients/:patientId', updatePatient);
-router.patch('/patients/:patientId/deactivate', deactivatePatient);
 
 // Session management routes
 router.get('/sessions', getAllSessions);
-router.post('/sessions/force-book', forceBookSession);
-router.patch('/sessions/:sessionId/reassign', reassignPractitioner);
-router.post('/sessions/bulk-reschedule', bulkReschedule);
+router.post('/sessions/force-book', forceBookSession);  //doubtful
+router.patch('/sessions/:sessionId/reassign', reassignPractitioner); //doubtful
 
 // Analytics routes
 router.get('/analytics/feedback', getFeedbackReports);

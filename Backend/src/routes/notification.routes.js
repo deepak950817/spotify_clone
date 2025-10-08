@@ -5,7 +5,6 @@ import {
   markAllAsRead,
   deleteNotification,
   sendNotification,
-  sendBroadcastNotification,
   getNotificationStats,
   sendSessionReminder,
   sendFeedbackRequest,
@@ -29,7 +28,6 @@ router.delete('/:notificationId', deleteNotification);
 
 // Send notifications (admin and practitioner only)
 router.post('/send', roleMiddleware(['admin', 'practitioner']), sendNotification);
-router.post('/broadcast', roleMiddleware(['admin']), sendBroadcastNotification);
 router.post('/session-reminder', roleMiddleware(['admin']), sendSessionReminder);
 router.post('/feedback-request', roleMiddleware(['admin', 'practitioner']), sendFeedbackRequest);
 

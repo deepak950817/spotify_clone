@@ -102,18 +102,19 @@
 
 
 // controllers/session.controller.js
-const { asyncHandler } = require('../utils/asyncHandler');
-const { ApiResponse } = require('../utils/ApiResponse');
-const { ApiError } = require('../utils/ApiError');
-const axios = require('axios');
-const crypto = require('crypto');
+import asyncHandler  from "../utils/asyncHandler.js";
+import  ApiResponse  from "../utils/ApiResponse.js";
+import  ApiError  from "../utils/ApiError.js";
+import axios from "axios";
+import crypto from "crypto";
 
-const Session = require('../models/Session.models');
-const Practitioner = require('../models/Practitioner.models');
-const Patient = require('../models/Patient.models');
-const AuditLog = require('../models/AuditLog.models');
-const Notification = require('../models/Notification.models');
-const RescheduleRequest = require('../models/RescheduleRequest.models');
+import Session from "../models/Session.models.js";
+import Practitioner from "../models/Practitioner.models.js";
+import Patient from "../models/Patient.models.js";
+import AuditLog from "../models/AuditLog.models.js";
+import Notification from "../models/Notification.models.js";
+import RescheduleRequest from "../models/RescheduleRequest.models.js";
+
 
 const AI_BASE = process.env.AI_SERVICE_URL || 'http://localhost:8000';
 
@@ -133,6 +134,8 @@ function getReservation(token) {
   if (Date.now() > entry.expiresAt) { reservations.delete(token); return null; }
   return entry.payload;
 }
+
+
 function deleteReservation(token) { reservations.delete(token); }
 
 // Helper: minimal conflict check (practitioner)
@@ -150,7 +153,7 @@ async function hasConflict(practitionerId, start, end, excludeSessionId = null) 
 }
 
 // POST /api/sessions/recommend
-exports.recommendSlots = asyncHandler(async (req, res) => {
+export const recommendSlots = asyncHandler(async (req, res) => {
   const { therapyType, preferredDays = 3, durationMinutes, preferredHours } = req.body;
   // 1) Find practitioners who can do the therapy
   const practitioners = await Practitioner.find({
@@ -164,36 +167,96 @@ exports.recommendSlots = asyncHandler(async (req, res) => {
   const now = new Date();
   const candidates = [];
 
+  // for (const pr of practitioners) {
+  //   // Use practitioner.workingHours if available; fallback to sample hours
+  //   const sampleHours = Array.isArray(preferredHours) && preferredHours.length ? preferredHours : [9, 11, 14, 16];
+  //   for (let d = 0; d < (preferredDays || 3); d++) {
+  //     const day = new Date(now); day.setDate(now.getDate() + d);
+  //     for (const hour of sampleHours) {
+  //       const start = new Date(day);
+  //       start.setHours(hour, 0, 0, 0);
+  //       if (start < now) continue;
+  //       const dur = durationMinutes || (pr.durationEstimates && pr.durationEstimates.get && pr.durationEstimates.get(therapyType)) || (pr.durationEstimates && pr.durationEstimates[therapyType]) || 60;
+  //       const end = new Date(start.getTime() + dur * 60000);
+  //       // quick conflict filter: do not propose slots that immediately conflict
+  //       const conflict = await Session.findOne({
+  //         practitionerId: pr._id,
+  //         scheduledStart: { $lt: end },
+  //         scheduledEnd: { $gt: start },
+  //         status: { $in: ['booked', 'confirmed', 'rescheduled'] }
+  //       }).lean();
+  //       if (conflict) continue;
+  //       candidates.push({
+  //         practitionerId: pr._id.toString(),
+  //         practitionerName: pr.name,
+  //         start: start.toISOString(),
+  //         end: end.toISOString(),
+  //         durationMinutes: dur,
+  //         centerId: pr.centerId ? pr.centerId.toString() : null
+  //       });
+  //     }
+  //   }
+  // }
+
   for (const pr of practitioners) {
-    // Use practitioner.workingHours if available; fallback to sample hours
-    const sampleHours = Array.isArray(preferredHours) && preferredHours.length ? preferredHours : [9, 11, 14, 16];
-    for (let d = 0; d < (preferredDays || 3); d++) {
-      const day = new Date(now); day.setDate(now.getDate() + d);
-      for (const hour of sampleHours) {
-        const start = new Date(day);
-        start.setHours(hour, 0, 0, 0);
-        if (start < now) continue;
-        const dur = durationMinutes || (pr.durationEstimates && pr.durationEstimates.get && pr.durationEstimates.get(therapyType)) || (pr.durationEstimates && pr.durationEstimates[therapyType]) || 60;
-        const end = new Date(start.getTime() + dur * 60000);
-        // quick conflict filter: do not propose slots that immediately conflict
-        const conflict = await Session.findOne({
-          practitionerId: pr._id,
-          scheduledStart: { $lt: end },
-          scheduledEnd: { $gt: start },
-          status: { $in: ['booked', 'confirmed', 'rescheduled'] }
-        }).lean();
-        if (conflict) continue;
+  const workingHours = Array.isArray(pr.workingHours) ? pr.workingHours : [];
+  const practitionerDuration = durationMinutes || 
+    (pr.durationEstimates?.get?.(therapyType) || 
+     pr.durationEstimates?.[therapyType] || 
+     60); // fallback default
+
+  for (let d = 0; d < (preferredDays || 3); d++) {
+    const day = new Date(now);
+    day.setDate(now.getDate() + d);
+    const weekday = day.getDay(); // 0=Sunday
+
+    const todayHours = workingHours.find(w => w.dayOfWeek === weekday && w.isActive);
+    if (!todayHours) continue; // skip non-working days
+
+    const [startH, startM] = todayHours.startTime.split(':').map(Number);
+    const [endH, endM] = todayHours.endTime.split(':').map(Number);
+
+    const dayStart = new Date(day);
+    dayStart.setHours(startH, startM, 0, 0);
+    const dayEnd = new Date(day);
+    dayEnd.setHours(endH, endM, 0, 0);
+
+    // Skip if working window already passed today
+    if (dayEnd < now) continue;
+
+    // Use a step interval for slot generation (30 minutes)
+    const SLOT_STEP_MINUTES = 30;
+    let current = new Date(dayStart);
+
+    while (current.getTime() + practitionerDuration * 60000 <= dayEnd.getTime()) {
+      const end = new Date(current.getTime() + practitionerDuration * 60000);
+
+      // Final conflict check (skip overlapping sessions)
+      const conflict = await Session.exists({
+        practitionerId: pr._id,
+        scheduledStart: { $lt: end },
+        scheduledEnd: { $gt: current },
+        status: { $in: ['booked', 'confirmed', 'rescheduled'] }
+      });
+
+      if (!conflict) {
         candidates.push({
           practitionerId: pr._id.toString(),
           practitionerName: pr.name,
-          start: start.toISOString(),
+          start: current.toISOString(),
           end: end.toISOString(),
-          durationMinutes: dur,
-          centerId: pr.centerId ? pr.centerId.toString() : null
+          durationMinutes: practitionerDuration,
+          centerId: pr.centerId?.toString() || null,
+          therapyType
         });
       }
+
+      // Increment current time by step size
+      current = new Date(current.getTime() + SLOT_STEP_MINUTES * 60000);
     }
   }
+}
+
 
   if (!candidates.length) return res.status(200).json(new ApiResponse(200, [], 'No candidate slots'));
 
@@ -241,7 +304,7 @@ exports.recommendSlots = asyncHandler(async (req, res) => {
 
 // POST /api/sessions/confirm
 // body: { reservationToken, candidateIndex } OR full payload { practitionerId, start, durationMinutes, therapyType, centerId }
-exports.confirmBooking = asyncHandler(async (req, res) => {
+export const confirmBooking = asyncHandler(async (req, res) => {
   const patientId = req.user && req.user.id;
   if (!patientId) throw new ApiError(401, 'Login required');
 
@@ -287,8 +350,12 @@ exports.confirmBooking = asyncHandler(async (req, res) => {
   });
 
   await AuditLog.create({
-    userId: patientId, userModel: 'Patient',
-    action: 'create', resourceType: 'Session', resourceId: session._id,
+    userId: patientId,
+    userModel: 'Patient',
+    centerId: centerId,
+    action: 'create', 
+    resourceType: 'Session', 
+    resourceId: session._id,
     description: 'Booked session (via AI)'
   });
 
@@ -302,7 +369,7 @@ exports.confirmBooking = asyncHandler(async (req, res) => {
 });
 
 // GET /api/sessions/:id
-exports.getSession = asyncHandler(async (req, res) => {
+export const getSession = asyncHandler(async (req, res) => {
   const id = req.params.id;
   const s = await Session.findById(id).populate('patientId practitionerId');
   if (!s) throw new ApiError(404, 'Session not found');
@@ -315,15 +382,15 @@ exports.getSession = asyncHandler(async (req, res) => {
 });
 
 // GET /api/sessions  (admin - filterable)
-exports.listSessions = asyncHandler(async (req, res) => {
-  const { start, end, practitionerId, patientId, centerId, status, page = 1, limit = 50 } = req.query;
-  const filter = {};
+export const listSessions = asyncHandler(async (req, res) => {
+  const { start, end, practitionerId, patientId, status, page = 1, limit = 50 } = req.query;
+  const filter = {centerId:req.user.centerId};
   if (start || end) filter.scheduledStart = {};
   if (start) filter.scheduledStart.$gte = new Date(start);
   if (end) filter.scheduledStart.$lte = new Date(end);
   if (practitionerId) filter.practitionerId = practitionerId;
   if (patientId) filter.patientId = patientId;
-  if (centerId) filter.centerId = centerId;
+  
   if (status) filter.status = status;
 
   // If not admin, restrict: practitioner -> own sessions; patient -> own sessions
@@ -341,7 +408,7 @@ exports.listSessions = asyncHandler(async (req, res) => {
 });
 
 // POST /api/sessions/:id/cancel (patient or admin)
-exports.cancelSession = asyncHandler(async (req, res) => {
+export const cancelSession = asyncHandler(async (req, res) => {
   const sessionId = req.params.id;
   const session = await Session.findById(sessionId);
   if (!session) throw new ApiError(404, 'Session not found');
@@ -356,8 +423,13 @@ exports.cancelSession = asyncHandler(async (req, res) => {
   await session.save();
 
   await AuditLog.create({
-    userId: req.user.id, userModel: req.user.role.charAt(0).toUpperCase() + req.user.role.slice(1),
-    action: 'cancel', resourceType: 'Session', resourceId: session._id, description: 'Session cancelled'
+    userId: req.user.id, 
+    userModel: req.user.role.charAt(0).toUpperCase() + req.user.role.slice(1),
+    action: 'cancel', 
+    resourceType: 'Session', 
+    resourceId: session._id, 
+    description: 'Session cancelled',
+    centerId: session.centerId,
   });
 
   // notify both sides
@@ -370,7 +442,7 @@ exports.cancelSession = asyncHandler(async (req, res) => {
 });
 
 // Admin-only: POST /api/sessions/force (force-book)
-exports.forceBookSession = asyncHandler(async (req, res) => {
+export const forceBookSession = asyncHandler(async (req, res) => {
   if (req.user.role !== 'admin') throw new ApiError(403, 'Admin only');
   const { patientId, practitionerId, startISO, durationMinutes = 60, therapyType, centerId } = req.body;
   if (!patientId || !practitionerId || !startISO) throw new ApiError(400, 'Missing required fields');
@@ -392,7 +464,14 @@ exports.forceBookSession = asyncHandler(async (req, res) => {
   });
 
   await AuditLog.create({
-    userId: req.user.id, userModel: 'Admin', action: 'create', resourceType: 'Session', resourceId: session._id, description: 'Force booked session', details: { conflict: !!conflict }
+    userId: req.user.id, 
+    userModel: 'Admin', 
+    action: 'create', 
+    resourceType: 'Session', 
+    resourceId: session._id, 
+    centerId: centerId,
+    description: 'Force booked session', 
+    details: { conflict: !!conflict }
   });
 
   await Notification.insertMany([
@@ -404,7 +483,7 @@ exports.forceBookSession = asyncHandler(async (req, res) => {
 });
 
 // Admin-only: POST /api/sessions/:id/reassign
-exports.reassignPractitioner = asyncHandler(async (req, res) => {
+export const reassignPractitioner = asyncHandler(async (req, res) => {
   if (req.user.role !== 'admin') throw new ApiError(403, 'Admin only');
   const sessionId = req.params.id;
   const { newPractitionerId } = req.body;
@@ -416,7 +495,14 @@ exports.reassignPractitioner = asyncHandler(async (req, res) => {
   await session.save();
 
   await AuditLog.create({
-    userId: req.user.id, userModel: 'Admin', action: 'update', resourceType: 'Session', resourceId: session._id, description: 'Reassigned practitioner', details: { from: prev, to: newPractitionerId }
+    userId: req.user.id, 
+    userModel: 'Admin', 
+    action: 'update', 
+    centerId: session.centerId,
+    resourceType: 'Session', 
+    resourceId: session._id, 
+    description: 'Reassigned practitioner', 
+    details: { from: prev, to: newPractitionerId }
   });
 
   // notify previous and new practitioner + patient
@@ -427,40 +513,4 @@ exports.reassignPractitioner = asyncHandler(async (req, res) => {
   ]);
 
   res.status(200).json(new ApiResponse(200, session, 'Reassigned'));
-});
-
-export const addSessionNotes = asyncHandler(async (req, res) => {
-  const { sessionId } = req.params;
-  const { notes } = req.body;
-
-  const session = await Session.findOne({
-    _id: sessionId,
-    $or: [
-      { practitionerId: req.user._id },
-      { patientId: req.user._id },
-      ...(req.user.role === 'admin' ? [{}] : [])
-    ]
-  });
-
-  if (!session) throw new ApiError(404, 'Session not found or access denied');
-
-  const updatedSession = await Session.findByIdAndUpdate(
-    sessionId,
-    { $set: { notes } },
-    { new: true }
-  );
-
-  await AuditLog.create({
-    userId: req.user._id,
-    userModel: req.user.role.charAt(0).toUpperCase() + req.user.role.slice(1),
-    action: 'update',
-    resourceType: 'Session',
-    resourceId: sessionId,
-    description: 'Session notes added/updated',
-    ipAddress: req.ip
-  });
-
-  res.status(200).json(
-    new ApiResponse(200, updatedSession, "Session notes updated successfully")
-  );
 });

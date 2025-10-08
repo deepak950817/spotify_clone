@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const auditLogSchema = new mongoose.Schema({
   userId: {
@@ -11,6 +11,12 @@ const auditLogSchema = new mongoose.Schema({
     required: true,
     enum: ['Patient', 'Practitioner', 'Admin']
   },
+  centerId: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: 'Center',
+  required: false, // some system actions may not belong to a center
+  index: true
+},
   action: {
     type: String,
     required: true,
@@ -46,7 +52,7 @@ const auditLogSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// 📈 Useful indexes for efficient queries
+// Useful indexes for efficient queries
 auditLogSchema.index({ userId: 1, timestamp: -1 });
 auditLogSchema.index({ resourceType: 1, resourceId: 1 });
 auditLogSchema.index({ action: 1 });
