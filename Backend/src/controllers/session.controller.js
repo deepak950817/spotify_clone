@@ -428,3 +428,39 @@ exports.reassignPractitioner = asyncHandler(async (req, res) => {
 
   res.status(200).json(new ApiResponse(200, session, 'Reassigned'));
 });
+
+export const addSessionNotes = asyncHandler(async (req, res) => {
+  const { sessionId } = req.params;
+  const { notes } = req.body;
+
+  const session = await Session.findOne({
+    _id: sessionId,
+    $or: [
+      { practitionerId: req.user._id },
+      { patientId: req.user._id },
+      ...(req.user.role === 'admin' ? [{}] : [])
+    ]
+  });
+
+  if (!session) throw new ApiError(404, 'Session not found or access denied');
+
+  const updatedSession = await Session.findByIdAndUpdate(
+    sessionId,
+    { $set: { notes } },
+    { new: true }
+  );
+
+  await AuditLog.create({
+    userId: req.user._id,
+    userModel: req.user.role.charAt(0).toUpperCase() + req.user.role.slice(1),
+    action: 'update',
+    resourceType: 'Session',
+    resourceId: sessionId,
+    description: 'Session notes added/updated',
+    ipAddress: req.ip
+  });
+
+  res.status(200).json(
+    new ApiResponse(200, updatedSession, "Session notes updated successfully")
+  );
+});

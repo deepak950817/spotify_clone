@@ -1,5 +1,5 @@
-const mongoose = require('mongoose');
-import { userMethodsPlugin } from './UserMethods';
+import mongoose from 'mongoose';
+import { userMethodsPlugin } from './UserMethods.js';
 
 const adminSchema = new mongoose.Schema({
   name: {
@@ -56,5 +56,4 @@ const adminSchema = new mongoose.Schema({
 
 // attach shared auth methods
 adminSchema.plugin(userMethodsPlugin);
-
-module.exports = mongoose.model('Admin', adminSchema);
+export default mongoose.model('Admin', adminSchema);

@@ -1,0 +1,55 @@
+import express from 'express';
+import {
+  getProfile,
+  updateProfile,
+  getMedicalHistory,
+  updateMedicalHistory,
+  getTherapyPreferences,
+  updateTherapyPreferences,
+  getAvailability,
+  updateAvailability,
+  getUpcomingSessions,
+  getSessionHistory,
+  getProgress,
+  getNotifications,
+  updateProfileImage,
+  deactivateAccount
+} from '../controllers/patient.controller.js';
+import { authMiddleware } from '../middleware/auth.middleware.js';
+import { roleMiddleware } from '../middleware/role.middleware.js';
+
+const router = express.Router();
+
+// All routes require patient authentication
+router.use(authMiddleware);
+router.use(roleMiddleware(['patient']));
+
+// Profile routes
+router.get('/profile', getProfile);
+router.put('/profile', updateProfile);
+router.patch('/profile/image', updateProfileImage);
+router.patch('/deactivate', deactivateAccount);
+
+// Medical history routes
+router.get('/medical-history', getMedicalHistory);
+router.put('/medical-history', updateMedicalHistory);
+
+// Therapy preferences routes
+router.get('/therapy-preferences', getTherapyPreferences);
+router.put('/therapy-preferences', updateTherapyPreferences);
+
+// Availability routes
+router.get('/availability', getAvailability);
+router.put('/availability', updateAvailability);
+
+// Session routes
+router.get('/sessions/upcoming', getUpcomingSessions);
+router.get('/sessions/history', getSessionHistory);
+
+// Progress routes
+router.get('/progress', getProgress);
+
+// Notification routes
+router.get('/notifications', getNotifications);
+
+export default router;

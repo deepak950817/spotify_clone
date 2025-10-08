@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
-import { userMethodsPlugin } from './UserMethods';
+import { userMethodsPlugin } from './UserMethods.js';
 
 const patientSchema = new mongoose.Schema({
   name: { type: String, required: [true, 'Patient name is required'], trim: true },
@@ -82,4 +82,4 @@ patientSchema.index({ 'availability.dayOfWeek': 1, isActive: 1 });
 
 patientSchema.plugin(userMethodsPlugin);
 
-module.exports = mongoose.model('Patient', patientSchema);
+export default mongoose.model('Patient', patientSchema);

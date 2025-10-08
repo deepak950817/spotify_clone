@@ -53,4 +53,4 @@ rescheduleRequestSchema.index({ status: 1 });
 rescheduleRequestSchema.index({ session: 1 });
 rescheduleRequestSchema.index({ requestedBy: 1 });
 
-module.exports = mongoose.model("RescheduleRequest", rescheduleRequestSchema);
+export default mongoose.model("RescheduleRequest", rescheduleRequestSchema);

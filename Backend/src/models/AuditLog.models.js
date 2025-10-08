@@ -52,4 +52,4 @@ auditLogSchema.index({ resourceType: 1, resourceId: 1 });
 auditLogSchema.index({ action: 1 });
 auditLogSchema.index({ timestamp: -1 });
 
-module.exports = mongoose.model('AuditLog', auditLogSchema);
+export default mongoose.model('AuditLog', auditLogSchema);

@@ -21,8 +21,8 @@ export const userMethodsPlugin = (schema, options) => {
   schema.methods.generateAccessToken = function () {
     return jwt.sign(
       { id: this._id, role: this.role },
-      process.env.JWT_SECRET,
-      { expiresIn: "15m" }
+      process.env.ACCESS_TOKEN_SECRET,
+      { expiresIn: process.env.ACCESS_TOKEN_EXPIRY || "15m" }
     );
   };
 
@@ -30,8 +30,8 @@ export const userMethodsPlugin = (schema, options) => {
   schema.methods.generateRefreshToken = function () {
     return jwt.sign(
       { id: this._id, role: this.role },
-      process.env.JWT_REFRESH_SECRET,
-      { expiresIn: "7d" }
+      process.env.REFRESH_TOKEN_SECRET,
+      { expiresIn: process.env.REFRESH_TOKEN_EXPIRY || "7d" }
     );
   };
 

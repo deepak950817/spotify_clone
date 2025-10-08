@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
-import { userMethodsPlugin } from './UserMethods';
+import { userMethodsPlugin } from './UserMethods.js';
 
 const practitionerSchema = new mongoose.Schema({
   name: { type: String, required: [true, 'Practitioner name is required'], trim: true },
@@ -74,4 +74,4 @@ practitionerSchema.index({ 'workingHours.dayOfWeek': 1, isActive: 1 });
 
 practitionerSchema.plugin(userMethodsPlugin);
 
-module.exports = mongoose.model('Practitioner', practitionerSchema);
+export default mongoose.model('Practitioner', practitionerSchema);
