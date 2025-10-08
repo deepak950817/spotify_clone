@@ -22,12 +22,12 @@ const uploadOnCloudinary = async (localFilePath, resourceType = "auto") => {
     });
 
     fs.unlinkSync(localFilePath); // remove local file
-    console.log("✅ Uploaded to Cloudinary:", response.secure_url);
+    console.log("Uploaded to Cloudinary:", response.secure_url);
     return response;
 
   } catch (error) {
     fs.unlinkSync(localFilePath);
-    console.error("❌ Cloudinary Upload Error:", error);
+    console.error("Cloudinary Upload Error:", error);
     throw new ApiError(500, "Upload failed");
   }
 };
@@ -46,11 +46,11 @@ const deleteFromCloudinary = async (url, resourceType = "image") => {
 
     const publicId = match[1];
     const result = await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
-    console.log(`✅ Cloudinary deletion result (${resourceType}):`, result);
+    console.log(`Cloudinary deletion result (${resourceType}):`, result);
     return result;
 
   } catch (error) {
-    console.error(`❌ Cloudinary deletion error (${resourceType}):`, error);
+    console.error(`Cloudinary deletion error (${resourceType}):`, error);
     throw new ApiError(500, `Unable to delete ${resourceType} from Cloudinary`);
   }
 };
