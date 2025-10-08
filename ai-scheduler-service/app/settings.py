@@ -1,6 +1,8 @@
 # app/settings.py
 import os
-from pydantic import BaseSettings
+# from pydantic import BaseSettings
+from pydantic_settings import BaseSettings
+
 
 class Settings(BaseSettings):
     MODEL_DIR: str = os.getenv("MODEL_DIR", "./models")
