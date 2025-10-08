@@ -133,6 +133,8 @@ function getReservation(token) {
   if (Date.now() > entry.expiresAt) { reservations.delete(token); return null; }
   return entry.payload;
 }
+
+
 function deleteReservation(token) { reservations.delete(token); }
 
 // Helper: minimal conflict check (practitioner)
