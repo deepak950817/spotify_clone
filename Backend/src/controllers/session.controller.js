@@ -166,36 +166,96 @@ exports.recommendSlots = asyncHandler(async (req, res) => {
   const now = new Date();
   const candidates = [];
 
+  // for (const pr of practitioners) {
+  //   // Use practitioner.workingHours if available; fallback to sample hours
+  //   const sampleHours = Array.isArray(preferredHours) && preferredHours.length ? preferredHours : [9, 11, 14, 16];
+  //   for (let d = 0; d < (preferredDays || 3); d++) {
+  //     const day = new Date(now); day.setDate(now.getDate() + d);
+  //     for (const hour of sampleHours) {
+  //       const start = new Date(day);
+  //       start.setHours(hour, 0, 0, 0);
+  //       if (start < now) continue;
+  //       const dur = durationMinutes || (pr.durationEstimates && pr.durationEstimates.get && pr.durationEstimates.get(therapyType)) || (pr.durationEstimates && pr.durationEstimates[therapyType]) || 60;
+  //       const end = new Date(start.getTime() + dur * 60000);
+  //       // quick conflict filter: do not propose slots that immediately conflict
+  //       const conflict = await Session.findOne({
+  //         practitionerId: pr._id,
+  //         scheduledStart: { $lt: end },
+  //         scheduledEnd: { $gt: start },
+  //         status: { $in: ['booked', 'confirmed', 'rescheduled'] }
+  //       }).lean();
+  //       if (conflict) continue;
+  //       candidates.push({
+  //         practitionerId: pr._id.toString(),
+  //         practitionerName: pr.name,
+  //         start: start.toISOString(),
+  //         end: end.toISOString(),
+  //         durationMinutes: dur,
+  //         centerId: pr.centerId ? pr.centerId.toString() : null
+  //       });
+  //     }
+  //   }
+  // }
+
   for (const pr of practitioners) {
-    // Use practitioner.workingHours if available; fallback to sample hours
-    const sampleHours = Array.isArray(preferredHours) && preferredHours.length ? preferredHours : [9, 11, 14, 16];
-    for (let d = 0; d < (preferredDays || 3); d++) {
-      const day = new Date(now); day.setDate(now.getDate() + d);
-      for (const hour of sampleHours) {
-        const start = new Date(day);
-        start.setHours(hour, 0, 0, 0);
-        if (start < now) continue;
-        const dur = durationMinutes || (pr.durationEstimates && pr.durationEstimates.get && pr.durationEstimates.get(therapyType)) || (pr.durationEstimates && pr.durationEstimates[therapyType]) || 60;
-        const end = new Date(start.getTime() + dur * 60000);
-        // quick conflict filter: do not propose slots that immediately conflict
-        const conflict = await Session.findOne({
-          practitionerId: pr._id,
-          scheduledStart: { $lt: end },
-          scheduledEnd: { $gt: start },
-          status: { $in: ['booked', 'confirmed', 'rescheduled'] }
-        }).lean();
-        if (conflict) continue;
+  const workingHours = Array.isArray(pr.workingHours) ? pr.workingHours : [];
+  const practitionerDuration = durationMinutes || 
+    (pr.durationEstimates?.get?.(therapyType) || 
+     pr.durationEstimates?.[therapyType] || 
+     60); // fallback default
+
+  for (let d = 0; d < (preferredDays || 3); d++) {
+    const day = new Date(now);
+    day.setDate(now.getDate() + d);
+    const weekday = day.getDay(); // 0=Sunday
+
+    const todayHours = workingHours.find(w => w.dayOfWeek === weekday && w.isActive);
+    if (!todayHours) continue; // skip non-working days
+
+    const [startH, startM] = todayHours.startTime.split(':').map(Number);
+    const [endH, endM] = todayHours.endTime.split(':').map(Number);
+
+    const dayStart = new Date(day);
+    dayStart.setHours(startH, startM, 0, 0);
+    const dayEnd = new Date(day);
+    dayEnd.setHours(endH, endM, 0, 0);
+
+    // Skip if working window already passed today
+    if (dayEnd < now) continue;
+
+    // Use a step interval for slot generation (30 minutes)
+    const SLOT_STEP_MINUTES = 30;
+    let current = new Date(dayStart);
+
+    while (current.getTime() + practitionerDuration * 60000 <= dayEnd.getTime()) {
+      const end = new Date(current.getTime() + practitionerDuration * 60000);
+
+      // Final conflict check (skip overlapping sessions)
+      const conflict = await Session.exists({
+        practitionerId: pr._id,
+        scheduledStart: { $lt: end },
+        scheduledEnd: { $gt: current },
+        status: { $in: ['booked', 'confirmed', 'rescheduled'] }
+      });
+
+      if (!conflict) {
         candidates.push({
           practitionerId: pr._id.toString(),
           practitionerName: pr.name,
-          start: start.toISOString(),
+          start: current.toISOString(),
           end: end.toISOString(),
-          durationMinutes: dur,
-          centerId: pr.centerId ? pr.centerId.toString() : null
+          durationMinutes: practitionerDuration,
+          centerId: pr.centerId?.toString() || null,
+          therapyType
         });
       }
+
+      // Increment current time by step size
+      current = new Date(current.getTime() + SLOT_STEP_MINUTES * 60000);
     }
   }
+}
+
 
   if (!candidates.length) return res.status(200).json(new ApiResponse(200, [], 'No candidate slots'));
 
@@ -318,14 +378,14 @@ exports.getSession = asyncHandler(async (req, res) => {
 
 // GET /api/sessions  (admin - filterable)
 exports.listSessions = asyncHandler(async (req, res) => {
-  const { start, end, practitionerId, patientId, centerId, status, page = 1, limit = 50 } = req.query;
-  const filter = {};
+  const { start, end, practitionerId, patientId, status, page = 1, limit = 50 } = req.query;
+  const filter = {centerId:req.user.centerId};
   if (start || end) filter.scheduledStart = {};
   if (start) filter.scheduledStart.$gte = new Date(start);
   if (end) filter.scheduledStart.$lte = new Date(end);
   if (practitionerId) filter.practitionerId = practitionerId;
   if (patientId) filter.patientId = patientId;
-  if (centerId) filter.centerId = centerId;
+  
   if (status) filter.status = status;
 
   // If not admin, restrict: practitioner -> own sessions; patient -> own sessions

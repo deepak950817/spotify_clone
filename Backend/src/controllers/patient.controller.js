@@ -113,7 +113,7 @@ export const getProfile = asyncHandler(async (req, res) => {
   res.status(200).json(
     new ApiResponse(200, patient, "Patient profile fetched successfully")
   );
-});
+}); // patient dashboard ke liye
 
 export const updateProfile = asyncHandler(async (req, res) => {
   const { name, phone, gender, dateOfBirth, address, emergencyContact } = req.body;
