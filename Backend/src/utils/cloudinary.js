@@ -51,7 +51,7 @@ const deleteFromCloudinary = async (url, resourceType = "image") => {
     console.log(`✅ Cloudinary deletion (${resourceType}):`, result);
     return result;
   } catch (error) {
-    console.error(`❌ Cloudinary deletion error (${resourceType}):`, error);
+    console.error(`Cloudinary deletion error (${resourceType}):`, error);
     throw new ApiError(500, `Unable to delete ${resourceType} from Cloudinary`);
   }
 };
