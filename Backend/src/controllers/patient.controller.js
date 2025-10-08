@@ -171,6 +171,7 @@ export const updateMedicalHistory = asyncHandler(async (req, res) => {
     userId: patient._id,
     userModel: 'Patient',
     action: 'update',
+    centerId: patient.centerId,
     resourceType: 'MedicalHistory',
     resourceId: patient._id,
     description: 'Medical history updated',
@@ -203,6 +204,7 @@ export const updateTherapyPreferences = asyncHandler(async (req, res) => {
   await AuditLog.create({
     userId: patient._id,
     userModel: 'Patient',
+    centerId: patient.centerId,
     action: 'update',
     resourceType: 'TherapyPreferences',
     resourceId: patient._id,
@@ -223,7 +225,7 @@ export const getAvailability = asyncHandler(async (req, res) => {
     new ApiResponse(200, patient.availability, "Availability fetched successfully")
   );
 });
-
+//hamesha update se phle get krege phir option denge phir krwayege
 export const updateAvailability = asyncHandler(async (req, res) => {
   const { availability } = req.body;
 
@@ -237,6 +239,7 @@ export const updateAvailability = asyncHandler(async (req, res) => {
     userId: patient._id,
     userModel: 'Patient',
     action: 'update',
+    centerId: patient.centerId,
     resourceType: 'Availability',
     resourceId: patient._id,
     description: 'Availability updated',
@@ -329,7 +332,7 @@ export const getProgress = asyncHandler(async (req, res) => {
 });
 
 export const getNotifications = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 10, read } = req.query;
+  const { page = 1, limit = 10, read } = req.query; //read mtlb option denge read true to hme read wali denge vrna unread wali
 
   const filter = {
     userId: req.user._id,
@@ -337,7 +340,7 @@ export const getNotifications = asyncHandler(async (req, res) => {
   };
   if (read !== undefined) {
     filter.status = read ? 'read' : { $in: ['sent', 'delivered'] };
-  }
+  } 
 
   const notifications = await Notification.find(filter)
     .sort({ createdAt: -1 })
@@ -363,29 +366,58 @@ export const getNotifications = asyncHandler(async (req, res) => {
 });
 
 export const updateProfileImage = asyncHandler(async (req, res) => {
-  const { profileImage } = req.body;
+  if (!req.file?.path) {
+    throw new ApiError(400, "Profile image is required");
+  }
 
-  const patient = await Patient.findByIdAndUpdate(
-    req.user._id,
-    { profileImage },
-    { new: true }
-  ).select('profileImage');
+  // Fetch patient from DB
+  const patient = await Patient.findById(req.user._id);
+  if (!patient) {
+    throw new ApiError(404, "Patient not found");
+  }
 
+  // If existing image URL is present → delete from Cloudinary first
+  if (patient.profileImage?.url) {
+    try {
+      await deleteImageOnCloudinary(patient.profileImage.url);
+    } catch (err) {
+      console.warn("⚠️ Failed to delete old Cloudinary image:", err.message);
+    }
+  }
+
+  //Upload new image to Cloudinary
+  const uploadRes = await uploadOnCloudinary(req.file.path, "image");
+
+  if (!uploadRes?.secure_url) {
+    throw new ApiError(500, "Image upload failed");
+  }
+
+  //Update DB
+  patient.profileImage = {
+    url: uploadRes.secure_url,
+    publicId: uploadRes.public_id,
+  };
+
+  await patient.save();
+
+  // Log the update
   await AuditLog.create({
     userId: patient._id,
-    userModel: 'Patient',
-    action: 'update',
-    resourceType: 'Patient',
+    userModel: "Patient",
+    role: "Patient",
+    centerId: patient.centerId,
+    action: "update",
+    resourceType: "Patient",
     resourceId: patient._id,
-    description: 'Profile image updated',
-    ipAddress: req.ip
+    description: "Profile image updated",
+    ipAddress: req.ip,
   });
 
-  res.status(200).json(
-    new ApiResponse(200, patient.profileImage, "Profile image updated successfully")
-  );
+  // Return success response
+  return res
+    .status(200)
+    .json(new ApiResponse(200, patient.profileImage, "Profile image updated successfully"));
 });
-
 export const deactivateAccount = asyncHandler(async (req, res) => {
   const patient = await Patient.findByIdAndUpdate(
     req.user._id,
@@ -397,6 +429,7 @@ export const deactivateAccount = asyncHandler(async (req, res) => {
     userId: patient._id,
     userModel: 'Patient',
     action: 'update',
+    centerId: patient.centerId,
     resourceType: 'Patient',
     resourceId: patient._id,
     description: 'Account deactivated',

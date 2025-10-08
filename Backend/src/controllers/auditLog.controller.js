@@ -490,7 +490,7 @@ export const searchAuditLogs = asyncHandler(async (req, res) => {
 // Helper functions
 const getCenterUserIds = async (centerId) => {
   const [patients, practitioners, admins] = await Promise.all([
-    Patient.find({}).select('_id'),
+    Patient.find({centerId}).select('_id'),
     Practitioner.find({ centerId }).select('_id'),
     Admin.find({ centerId }).select('_id')
   ]);

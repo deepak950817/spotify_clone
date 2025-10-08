@@ -1,10 +1,9 @@
 // controllers/ai.controller.js
-const axios = require('axios');
-const { asyncHandler } = require('../utils/asyncHandler');
-const { ApiResponse } = require('../utils/ApiResponse');
-const { ApiError } = require('../utils/ApiError');
-const AuditLog = require('../models/AuditLog.models');
-
+import axios from "axios";
+import asyncHandler from "../utils/asyncHandler.js";
+import ApiResponse from "../utils/ApiResponse.js";
+import ApiError from "../utils/ApiError.js";
+import AuditLog from "../models/AuditLog.models.js";
 
 
 const AI_BASE = process.env.AI_SERVICE_URL; // e.g. http://localhost:8000
@@ -12,7 +11,7 @@ const AI_RETRAIN_API_KEY = process.env.AI_RETRAIN_API_KEY;
 
 // GET /api/ai/health
 
-exports.health = asyncHandler(async (req, res) => {
+export const health = asyncHandler(async (req, res) => {
   try {
     const r = await axios.get(`${AI_BASE}/health`, { timeout: 3000 });
     return res.status(200).json(new ApiResponse(200, r.data, 'AI service healthy'));
@@ -23,7 +22,7 @@ exports.health = asyncHandler(async (req, res) => {
 
 // POST /api/ai/predict_slots
 // Proxy endpoint (Node -> FastAPI). Request body forwarded as-is.
-exports.predictSlots = asyncHandler(async (req, res) => {
+export const predictSlots = asyncHandler(async (req, res) => {
   try {
     const payload = req.body;
     const r = await axios.post(`${AI_BASE}/predict_slots`, payload, { timeout: 15000 });
@@ -36,7 +35,7 @@ exports.predictSlots = asyncHandler(async (req, res) => {
 
 // POST /api/ai/test-slot
 // Simple helper to test a single candidate; useful in development.
-exports.testSlot = asyncHandler(async (req, res) => {
+export const testSlot = asyncHandler(async (req, res) => {
   try {
     const payload = { candidates: [req.body] };
     const r = await axios.post(`${AI_BASE}/predict_slots`, payload, { timeout: 8000 });
@@ -48,7 +47,7 @@ exports.testSlot = asyncHandler(async (req, res) => {
 });
 
 // POST /api/ai/retrain  (admin only)
-exports.retrain = asyncHandler(async (req, res) => {
+export const retrain = asyncHandler(async (req, res) => {
   if (!req.user || req.user.role !== 'admin') throw new ApiError(403, 'Admin only');
   try {
     const r = await axios.post(`${AI_BASE}/retrain`, req.body || {}, { timeout: 10000 ,
@@ -66,7 +65,7 @@ exports.retrain = asyncHandler(async (req, res) => {
 });
 
 // GET /api/ai/metrics  (admin only)
-exports.metrics = asyncHandler(async (req, res) => {
+export const metrics = asyncHandler(async (req, res) => {
   if (!req.user || req.user.role !== 'admin') throw new ApiError(403, 'Admin only');
   try {
     const r = await axios.get(`${AI_BASE}/metrics`, { timeout: 8000 });

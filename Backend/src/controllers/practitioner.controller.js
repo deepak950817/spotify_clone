@@ -139,6 +139,7 @@ export const updateProfile = asyncHandler(async (req, res) => {
     userId: practitioner._id,
     userModel: 'Practitioner',
     action: 'update',
+    centerId: practitioner.centerId,
     resourceType: 'Practitioner',
     resourceId: practitioner._id,
     description: 'Practitioner profile updated',
@@ -173,6 +174,7 @@ export const updateSpecializations = asyncHandler(async (req, res) => {
     userId: practitioner._id,
     userModel: 'Practitioner',
     action: 'update',
+    centerId: practitioner.centerId,  
     resourceType: 'Specialization',
     resourceId: practitioner._id,
     description: 'Specializations updated',
@@ -206,6 +208,7 @@ export const updateWorkingHours = asyncHandler(async (req, res) => {
     userId: practitioner._id,
     userModel: 'Practitioner',
     action: 'update',
+    centerId: practitioner.centerId,  
     resourceType: 'WorkingHours',
     resourceId: practitioner._id,
     description: 'Working hours updated',
@@ -278,7 +281,7 @@ export const getCompletedSessions = asyncHandler(async (req, res) => {
 export const markSessionComplete = asyncHandler(async (req, res) => {
   const { sessionId } = req.params;
   const { outcome } = req.body;
-
+//session ka kya outcome nikla
   const session = await Session.findOne({
     _id: sessionId,
     practitionerId: req.user._id
@@ -295,6 +298,7 @@ export const markSessionComplete = asyncHandler(async (req, res) => {
     userId: req.user._id,
     userModel: 'Practitioner',
     action: 'update',
+    centerId: session.centerId,
     resourceType: 'Session',
     resourceId: session._id,
     description: 'Session marked as completed',
@@ -326,6 +330,7 @@ export const addSessionOutcome = asyncHandler(async (req, res) => {
     userId: req.user._id,
     userModel: 'Practitioner',
     action: 'update',
+    centerId: session.centerId,
     resourceType: 'Session',
     resourceId: session._id,
     description: 'Session outcome added',
@@ -341,8 +346,7 @@ export const getPatientDetails = asyncHandler(async (req, res) => {
   const { patientId } = req.params;
 
   const patient = await Patient.findById(patientId)
-    .select('name gender dateOfBirth medicalHistory therapyPreferences')
-    .populate('medicalHistory.condition');
+    .select('name gender dateOfBirth medicalHistory therapyPreferences profileImage');
 
   if (!patient) throw new ApiError(404, 'Patient not found');
 
@@ -443,25 +447,55 @@ export const getFeedback = asyncHandler(async (req, res) => {
 });
 
 export const updateProfileImage = asyncHandler(async (req, res) => {
-  const { profileImage } = req.body;
+  if (!req.file?.path) {
+    throw new ApiError(400, "Profile image is required");
+  }
 
-  const practitioner = await Practitioner.findByIdAndUpdate(
-    req.user._id,
-    { profileImage },
-    { new: true }
-  ).select('profileImage');
+  // Fetch practitioner
+  const practitioner = await Practitioner.findById(req.user._id);
+  if (!practitioner) {
+    throw new ApiError(404, "Practitioner not found");
+  }
 
+  // ✅ Delete old Cloudinary image if exists
+  if (practitioner.profileImage?.url) {
+    try {
+      await deleteImageOnCloudinary(practitioner.profileImage.url);
+    } catch (err) {
+      console.warn("⚠️ Failed to delete old Cloudinary image:", err.message);
+    }
+  }
+
+  // ✅ Upload new image
+  const uploadRes = await uploadOnCloudinary(req.file.path, "image");
+
+  if (!uploadRes?.secure_url) {
+    throw new ApiError(500, "Image upload failed");
+  }
+
+  // ✅ Update practitioner document
+  practitioner.profileImage = {
+    url: uploadRes.secure_url,
+    publicId: uploadRes.public_id,
+  };
+
+  await practitioner.save();
+
+  // ✅ Log this action
   await AuditLog.create({
     userId: practitioner._id,
-    userModel: 'Practitioner',
-    action: 'update',
-    resourceType: 'Practitioner',
+    userModel: "Practitioner",
+    role: "Practitioner",
+    action: "update",
+    centerId: practitioner.centerId,
+    resourceType: "Practitioner",
     resourceId: practitioner._id,
-    description: 'Profile image updated',
-    ipAddress: req.ip
+    description: "Profile image updated",
+    ipAddress: req.ip,
   });
 
-  res.status(200).json(
+  // ✅ Respond success
+  return res.status(200).json(
     new ApiResponse(200, practitioner.profileImage, "Profile image updated successfully")
   );
 });
@@ -479,6 +513,7 @@ export const updateDurationEstimates = asyncHandler(async (req, res) => {
     userId: practitioner._id,
     userModel: 'Practitioner',
     action: 'update',
+    centerId: practitioner.centerId,
     resourceType: 'Practitioner',
     resourceId: practitioner._id,
     description: 'Duration estimates updated',

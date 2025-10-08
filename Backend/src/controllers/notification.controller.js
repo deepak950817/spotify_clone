@@ -89,7 +89,6 @@ export const markAsRead = asyncHandler(async (req, res) => {
   if (!notification) throw new ApiError(404, 'Notification not found');
 
   notification.status = 'read';
-  notification.readAt = new Date();
   await notification.save();
 
   res.status(200).json(
@@ -106,7 +105,6 @@ export const markAllAsRead = asyncHandler(async (req, res) => {
     },
     {
       status: 'read',
-      readAt: new Date()
     }
   );
 
@@ -114,6 +112,7 @@ export const markAllAsRead = asyncHandler(async (req, res) => {
     userId: req.user._id,
     userModel: req.user.role.charAt(0).toUpperCase() + req.user.role.slice(1),
     action: 'update',
+    centerId: req.user.centerId,
     resourceType: 'Notification',
     description: 'All notifications marked as read',
     ipAddress: req.ip
@@ -139,6 +138,7 @@ export const deleteNotification = asyncHandler(async (req, res) => {
     userId: req.user._id,
     userModel: req.user.role.charAt(0).toUpperCase() + req.user.role.slice(1),
     action: 'delete',
+    centerId: req.user.centerId,
     resourceType: 'Notification',
     resourceId: notificationId,
     description: 'Notification deleted',
@@ -193,90 +193,13 @@ export const sendNotification = asyncHandler(async (req, res) => {
     resourceType: 'Notification',
     resourceId: notification._id,
     description: 'Notification sent to user',
+    centerId: req.user.centerId,  
     details: { targetUser: userId, userModel, type },
     ipAddress: req.ip
   });
 
   res.status(201).json(
     new ApiResponse(201, notification, "Notification sent successfully")
-  );
-});
-
-export const sendBroadcastNotification = asyncHandler(async (req, res) => {
-  const { title, message, targetUsers, type, channel, priority } = req.body;
-
-  if (req.user.role !== 'admin') {
-    throw new ApiError(403, 'Only admins can send broadcast notifications');
-  }
-
-  let users = [];
-  const userModels = [];
-
-  if (targetUsers.includes('patients')) {
-    const patients = await Patient.find({ isActive: true }).select('_id');
-    users = [...users, ...patients];
-    userModels.push('Patient');
-  }
-
-  if (targetUsers.includes('practitioners')) {
-    const practitioners = await Practitioner.find({ 
-      centerId: req.user.centerId, 
-      isActive: true 
-    }).select('_id');
-    users = [...users, ...practitioners];
-    userModels.push('Practitioner');
-  }
-
-  if (targetUsers.includes('admins')) {
-    const admins = await Admin.find({ 
-      centerId: req.user.centerId, 
-      isActive: true 
-    }).select('_id');
-    users = [...users, ...admins];
-    userModels.push('Admin');
-  }
-
-  if (users.length === 0) {
-    throw new ApiError(400, 'No users found for the specified target groups');
-  }
-
-  const notificationPromises = users.map(user => 
-    Notification.create({
-      userId: user._id,
-      userModel: user.constructor.modelName,
-      title,
-      message,
-      type: type || 'system_alert',
-      channel: channel || 'in_app',
-      priority: priority || 'medium',
-      sentAt: new Date()
-    })
-  );
-
-  const notifications = await Promise.all(notificationPromises);
-
-  await AuditLog.create({
-    userId: req.user._id,
-    userModel: 'Admin',
-    action: 'create',
-    resourceType: 'Notification',
-    description: 'Broadcast notification sent',
-    details: { 
-      targetUsers, 
-      userModels, 
-      recipientCount: users.length,
-      type,
-      channel 
-    },
-    ipAddress: req.ip
-  });
-
-  res.status(201).json(
-    new ApiResponse(201, { 
-      sentCount: notifications.length,
-      targetGroups: targetUsers,
-      userModels 
-    }, "Broadcast notification sent successfully")
   );
 });
 
@@ -436,6 +359,7 @@ export const sendSessionReminder = asyncHandler(async (req, res) => {
     userId: req.user._id,
     userModel: 'Admin',
     action: 'create',
+    centerId: req.user.centerId,
     resourceType: 'Notification',
     description: 'Session reminders sent manually',
     details: { sessionId, patientId, practitionerId },
@@ -474,6 +398,7 @@ export const sendFeedbackRequest = asyncHandler(async (req, res) => {
     userModel: req.user.role.charAt(0).toUpperCase() + req.user.role.slice(1),
     action: 'create',
     resourceType: 'Notification',
+    centerId: req.user.centerId,
     resourceId: feedbackNotification._id,
     description: 'Feedback request sent',
     details: { sessionId, patientId },
@@ -498,6 +423,7 @@ export const clearExpiredNotifications = asyncHandler(async (req, res) => {
     userId: req.user._id,
     userModel: 'Admin',
     action: 'delete',
+    centerId: req.user.centerId,
     resourceType: 'Notification',
     description: 'Expired notifications cleared',
     details: { deletedCount: result.deletedCount },

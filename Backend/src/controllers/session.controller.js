@@ -102,18 +102,19 @@
 
 
 // controllers/session.controller.js
-const { asyncHandler } = require('../utils/asyncHandler');
-const { ApiResponse } = require('../utils/ApiResponse');
-const { ApiError } = require('../utils/ApiError');
-const axios = require('axios');
-const crypto = require('crypto');
+import asyncHandler  from "../utils/asyncHandler.js";
+import  ApiResponse  from "../utils/ApiResponse.js";
+import  ApiError  from "../utils/ApiError.js";
+import axios from "axios";
+import crypto from "crypto";
 
-const Session = require('../models/Session.models');
-const Practitioner = require('../models/Practitioner.models');
-const Patient = require('../models/Patient.models');
-const AuditLog = require('../models/AuditLog.models');
-const Notification = require('../models/Notification.models');
-const RescheduleRequest = require('../models/RescheduleRequest.models');
+import Session from "../models/Session.models.js";
+import Practitioner from "../models/Practitioner.models.js";
+import Patient from "../models/Patient.models.js";
+import AuditLog from "../models/AuditLog.models.js";
+import Notification from "../models/Notification.models.js";
+import RescheduleRequest from "../models/RescheduleRequest.models.js";
+
 
 const AI_BASE = process.env.AI_SERVICE_URL || 'http://localhost:8000';
 
@@ -152,7 +153,7 @@ async function hasConflict(practitionerId, start, end, excludeSessionId = null) 
 }
 
 // POST /api/sessions/recommend
-exports.recommendSlots = asyncHandler(async (req, res) => {
+export const recommendSlots = asyncHandler(async (req, res) => {
   const { therapyType, preferredDays = 3, durationMinutes, preferredHours } = req.body;
   // 1) Find practitioners who can do the therapy
   const practitioners = await Practitioner.find({
@@ -303,7 +304,7 @@ exports.recommendSlots = asyncHandler(async (req, res) => {
 
 // POST /api/sessions/confirm
 // body: { reservationToken, candidateIndex } OR full payload { practitionerId, start, durationMinutes, therapyType, centerId }
-exports.confirmBooking = asyncHandler(async (req, res) => {
+export const confirmBooking = asyncHandler(async (req, res) => {
   const patientId = req.user && req.user.id;
   if (!patientId) throw new ApiError(401, 'Login required');
 
@@ -349,8 +350,12 @@ exports.confirmBooking = asyncHandler(async (req, res) => {
   });
 
   await AuditLog.create({
-    userId: patientId, userModel: 'Patient',
-    action: 'create', resourceType: 'Session', resourceId: session._id,
+    userId: patientId,
+    userModel: 'Patient',
+    centerId: centerId,
+    action: 'create', 
+    resourceType: 'Session', 
+    resourceId: session._id,
     description: 'Booked session (via AI)'
   });
 
@@ -364,7 +369,7 @@ exports.confirmBooking = asyncHandler(async (req, res) => {
 });
 
 // GET /api/sessions/:id
-exports.getSession = asyncHandler(async (req, res) => {
+export const getSession = asyncHandler(async (req, res) => {
   const id = req.params.id;
   const s = await Session.findById(id).populate('patientId practitionerId');
   if (!s) throw new ApiError(404, 'Session not found');
@@ -377,7 +382,7 @@ exports.getSession = asyncHandler(async (req, res) => {
 });
 
 // GET /api/sessions  (admin - filterable)
-exports.listSessions = asyncHandler(async (req, res) => {
+export const listSessions = asyncHandler(async (req, res) => {
   const { start, end, practitionerId, patientId, status, page = 1, limit = 50 } = req.query;
   const filter = {centerId:req.user.centerId};
   if (start || end) filter.scheduledStart = {};
@@ -403,7 +408,7 @@ exports.listSessions = asyncHandler(async (req, res) => {
 });
 
 // POST /api/sessions/:id/cancel (patient or admin)
-exports.cancelSession = asyncHandler(async (req, res) => {
+export const cancelSession = asyncHandler(async (req, res) => {
   const sessionId = req.params.id;
   const session = await Session.findById(sessionId);
   if (!session) throw new ApiError(404, 'Session not found');
@@ -418,8 +423,13 @@ exports.cancelSession = asyncHandler(async (req, res) => {
   await session.save();
 
   await AuditLog.create({
-    userId: req.user.id, userModel: req.user.role.charAt(0).toUpperCase() + req.user.role.slice(1),
-    action: 'cancel', resourceType: 'Session', resourceId: session._id, description: 'Session cancelled'
+    userId: req.user.id, 
+    userModel: req.user.role.charAt(0).toUpperCase() + req.user.role.slice(1),
+    action: 'cancel', 
+    resourceType: 'Session', 
+    resourceId: session._id, 
+    description: 'Session cancelled',
+    centerId: session.centerId,
   });
 
   // notify both sides
@@ -432,7 +442,7 @@ exports.cancelSession = asyncHandler(async (req, res) => {
 });
 
 // Admin-only: POST /api/sessions/force (force-book)
-exports.forceBookSession = asyncHandler(async (req, res) => {
+export const forceBookSession = asyncHandler(async (req, res) => {
   if (req.user.role !== 'admin') throw new ApiError(403, 'Admin only');
   const { patientId, practitionerId, startISO, durationMinutes = 60, therapyType, centerId } = req.body;
   if (!patientId || !practitionerId || !startISO) throw new ApiError(400, 'Missing required fields');
@@ -454,7 +464,14 @@ exports.forceBookSession = asyncHandler(async (req, res) => {
   });
 
   await AuditLog.create({
-    userId: req.user.id, userModel: 'Admin', action: 'create', resourceType: 'Session', resourceId: session._id, description: 'Force booked session', details: { conflict: !!conflict }
+    userId: req.user.id, 
+    userModel: 'Admin', 
+    action: 'create', 
+    resourceType: 'Session', 
+    resourceId: session._id, 
+    centerId: centerId,
+    description: 'Force booked session', 
+    details: { conflict: !!conflict }
   });
 
   await Notification.insertMany([
@@ -466,7 +483,7 @@ exports.forceBookSession = asyncHandler(async (req, res) => {
 });
 
 // Admin-only: POST /api/sessions/:id/reassign
-exports.reassignPractitioner = asyncHandler(async (req, res) => {
+export const reassignPractitioner = asyncHandler(async (req, res) => {
   if (req.user.role !== 'admin') throw new ApiError(403, 'Admin only');
   const sessionId = req.params.id;
   const { newPractitionerId } = req.body;
@@ -478,7 +495,14 @@ exports.reassignPractitioner = asyncHandler(async (req, res) => {
   await session.save();
 
   await AuditLog.create({
-    userId: req.user.id, userModel: 'Admin', action: 'update', resourceType: 'Session', resourceId: session._id, description: 'Reassigned practitioner', details: { from: prev, to: newPractitionerId }
+    userId: req.user.id, 
+    userModel: 'Admin', 
+    action: 'update', 
+    centerId: session.centerId,
+    resourceType: 'Session', 
+    resourceId: session._id, 
+    description: 'Reassigned practitioner', 
+    details: { from: prev, to: newPractitionerId }
   });
 
   // notify previous and new practitioner + patient

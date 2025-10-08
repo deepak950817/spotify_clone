@@ -1,14 +1,14 @@
 // controllers/report.controller.js
-const { asyncHandler } = require('../utils/asyncHandler');
-const { ApiResponse } = require('../utils/ApiResponse');
-const { ApiError } = require('../utils/ApiError');
-const Session = require('../models/Session.models');
-const Feedback = require('../models/Feedback.models');
-const Practitioner = require('../models/Practitioner.models');
-const AuditLog = require('../models/AuditLog.models');
+import asyncHandler from '../utils/asyncHandler.js';
+import ApiResponse from '../utils/ApiResponse.js';
+import ApiError from '../utils/ApiError.js';
+import Session from '../models/Session.models.js';
+import Feedback from '../models/Feedback.models.js';
+import Practitioner from '../models/Practitioner.models.js';
+import AuditLog from '../models/AuditLog.models.js';
 
 // GET /api/admin/reports/export?type=sessions&start=...&end=...
-exports.exportCSV = asyncHandler(async (req, res) => {
+export const exportCSV = asyncHandler(async (req, res) => {
   const { type, start, end } = req.query;
   const startD = start ? new Date(start) : new Date(0);
   const endD = end ? new Date(end) : new Date();
@@ -35,7 +35,7 @@ exports.exportCSV = asyncHandler(async (req, res) => {
 });
 
 // GET /api/admin/feedbacks/report
-exports.feedbackSummary = asyncHandler(async (req, res) => {
+export const feedbackSummary = asyncHandler(async (req, res) => {
   const report = await Feedback.aggregate([
     { $group: { _id: '$practitionerId', avgOverall: { $avg: '$ratings.overall' }, count: { $sum: 1 } } },
     { $lookup: { from: 'practitioners', localField: '_id', foreignField: '_id', as: 'pr' } },
@@ -44,3 +44,18 @@ exports.feedbackSummary = asyncHandler(async (req, res) => {
   ]);
   res.status(200).json(new ApiResponse(200, report));
 });
+
+
+// Example report output:
+// [
+//   {
+//     practitionerName: "Dr. Smith",
+//     avgOverall: 4.5,
+//     count: 10
+//   },
+//   {
+//     practitionerName: "Dr. Johnson", 
+//     avgOverall: 3.8,
+//     count: 5
+//   }
+// ]

@@ -215,15 +215,15 @@ export const registerPatient = asyncHandler(async (req, res) => {
 
   setTokenCookies(res, accessToken, refreshToken);
 
-  await AuditLog.create({
-    userId: patient._id,
-    userModel: 'Patient',
-    action: 'create',
-    resourceType: 'Patient',
-    resourceId: patient._id,
-    description: 'Patient registered successfully',
-    ipAddress: req.ip
-  });
+  // await AuditLog.create({
+  //   userId: patient._id,
+  //   userModel: 'Patient',
+  //   action: 'create',
+  //   resourceType: 'Patient',
+  //   resourceId: patient._id,
+  //   description: 'Patient registered successfully',
+  //   ipAddress: req.ip
+  // });
 
   const createdPatient = await Patient.findById(patient._id).select('-passwordHash -refreshToken');
 
@@ -253,6 +253,7 @@ export const registerPractitioner = asyncHandler(async (req, res) => {
   await AuditLog.create({
     userId: practitioner._id,
     userModel: 'Practitioner',
+    centerId: practitioner.centerId,
     action: 'create',
     resourceType: 'Practitioner',
     resourceId: practitioner._id,
@@ -286,6 +287,7 @@ export const registerAdmin = asyncHandler(async (req, res) => {
   await AuditLog.create({
     userId: admin._id,
     userModel: 'Admin',
+    centerId: admin.centerId,
     action: 'create',
     resourceType: 'Admin',
     resourceId: admin._id,
@@ -304,7 +306,7 @@ export const registerAdmin = asyncHandler(async (req, res) => {
 
 export const login = asyncHandler(async (req, res) => {
   const { email, password, role } = req.body;
-
+//frontend se role dropdown menu me input lega
   let user;
   switch (role) {
     case 'patient': user = await Patient.findOne({ email }); break;
@@ -331,6 +333,7 @@ export const login = asyncHandler(async (req, res) => {
     userModel: role.charAt(0).toUpperCase() + role.slice(1),
     action: 'login',
     resourceType: 'Auth',
+    centerId: user.centerId,
     description: 'User logged in successfully',
     ipAddress: req.ip
   });
@@ -353,6 +356,7 @@ export const logout = asyncHandler(async (req, res) => {
     userModel: req.user.role.charAt(0).toUpperCase() + req.user.role.slice(1),
     action: 'logout',
     resourceType: 'Auth',
+    centerId: req.user.centerId,
     description: 'User logged out successfully',
     ipAddress: req.ip
   });
@@ -391,6 +395,7 @@ export const refreshAccessToken = asyncHandler(async (req, res) => {
       userModel: decodedToken.role.charAt(0).toUpperCase() + decodedToken.role.slice(1),
       action: 'refresh_token',
       resourceType: 'Auth',
+      centerId: user.centerId, 
       description: 'Access token refreshed successfully',
       ipAddress: req.ip
     });
@@ -420,6 +425,7 @@ export const changePassword = asyncHandler(async (req, res) => {
     userModel: user.role.charAt(0).toUpperCase() + user.role.slice(1),
     action: 'password_change',
     resourceType: 'Auth',
+    centerId: user.centerId,
     description: 'Password changed successfully',
     ipAddress: req.ip
   });
@@ -431,7 +437,9 @@ export const getCurrentUser = asyncHandler(async (req, res) => {
   const user = await req.user.constructor.findById(req.user._id).select('-passwordHash -refreshToken');
   res.status(200).json(new ApiResponse(200, user, "Current user fetched successfully"));
 });
+//har jagah use krenge
 
+//ise delete mt krna rhne do aise hi
 export const forgotPassword = asyncHandler(async (req, res) => {
   const { email, role } = req.body;
 
@@ -458,6 +466,7 @@ export const forgotPassword = asyncHandler(async (req, res) => {
     userModel: role.charAt(0).toUpperCase() + role.slice(1),
     action: 'password_change',
     resourceType: 'Auth',
+    centerId: user.centerId,
     description: 'Password reset requested',
     ipAddress: req.ip
   });
@@ -490,6 +499,7 @@ export const resetPassword = asyncHandler(async (req, res) => {
     userModel: role.charAt(0).toUpperCase() + role.slice(1),
     action: 'password_change',
     resourceType: 'Auth',
+    centerId: user.centerId,
     description: 'Password reset successfully',
     ipAddress: req.ip
   });

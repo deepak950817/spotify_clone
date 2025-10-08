@@ -10,6 +10,7 @@ import AuditLog from '../models/AuditLog.models.js';
 export const createFeedback = asyncHandler(async (req, res) => {
   const { sessionId, ratings, comments, anonymous } = req.body;
 
+
   const session = await Session.findById(sessionId);
   if (!session) throw new ApiError(404, 'Session not found');
 
@@ -46,6 +47,7 @@ export const createFeedback = asyncHandler(async (req, res) => {
     userModel: req.user.role.charAt(0).toUpperCase() + req.user.role.slice(1),
     action: 'create',
     resourceType: 'Feedback',
+    centerId: req.user.centerId,
     resourceId: feedback._id,
     description: 'Feedback submitted',
     details: { sessionId, anonymous },
@@ -287,6 +289,7 @@ export const updateFeedback = asyncHandler(async (req, res) => {
     userId: req.user._id,
     userModel: 'Patient',
     action: 'update',
+    centerId: req.user.centerId,
     resourceType: 'Feedback',
     resourceId: feedbackId,
     description: 'Feedback updated',
@@ -321,6 +324,7 @@ export const deleteFeedback = asyncHandler(async (req, res) => {
     resourceType: 'Feedback',
     resourceId: feedbackId,
     description: 'Feedback deleted',
+    centerId: req.user.centerId, 
     ipAddress: req.ip
   });
 
