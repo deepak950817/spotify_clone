@@ -4,7 +4,7 @@ const { asyncHandler } = require('../utils/asyncHandler');
 const { ApiResponse } = require('../utils/ApiResponse');
 const { ApiError } = require('../utils/ApiError');
 const AuditLog = require('../models/AuditLog.models');
-const Admin = require('../models/Admin.models');
+
 
 const AI_BASE = process.env.AI_SERVICE_URL; // e.g. http://localhost:8000
 
