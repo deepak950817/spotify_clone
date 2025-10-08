@@ -516,3 +516,38 @@ export const getAvailableCenters = asyncHandler(async (req, res) => {
     )
   );
 });
+export const createCenter = asyncHandler(async (req, res) => {
+  const { name, address, contact, operatingHours, isActive } = req.body;
+
+  // Check if a center with same name already exists
+  const existingCenter = await Center.findOne({ name: name.trim() });
+  if (existingCenter) {
+    throw new ApiError(400, 'Center with this name already exists');
+  }
+
+  const center = await Center.create({
+    name: name.trim(),
+    address,
+    contact,
+    operatingHours,
+    isActive: isActive ?? true
+  });
+
+  res
+    .status(201)
+    .json(new ApiResponse(201, center, 'Center created successfully'));
+});
+
+// ------------------------ REMOVE CENTER ------------------------
+export const removeCenter = asyncHandler(async (req, res) => {
+  const { centerId } = req.params;
+
+  const center = await Center.findById(centerId);
+  if (!center) {
+    throw new ApiError(404, 'Center not found');
+  }
+
+  await Center.findByIdAndDelete(centerId);
+
+  res.status(200).json(new ApiResponse(200, null, 'Center removed successfully'));
+});

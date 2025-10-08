@@ -46,18 +46,18 @@ import exportRoutes from './routes/exportCSV.routes.js';
 
 // API routes
 
-app.use('/auth', authRoutes);
-app.use('/patients', patientRoutes);
-app.use('/practitioners', practitionerRoutes);
-app.use('/admin', adminRoutes);
-app.use('/sessions', sessionRoutes);
-app.use('/reschedule-requests', rescheduleRequestRoutes);
-app.use('/feedback', feedbackRoutes);
-app.use('/notifications', notificationRoutes);
-app.use('/audit-logs', auditLogRoutes);
-app.use('/center', centerRoutes);
-app.use('/ai', aiRoutes);
-app.use('/reports', exportRoutes);
+app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/patients', patientRoutes);
+app.use('/api/v1/practitioners', practitionerRoutes);
+app.use('/api/v1/admin', adminRoutes);
+app.use('/api/v1/sessions', sessionRoutes);
+app.use('/api/v1/reschedule-requests', rescheduleRequestRoutes);
+app.use('/api/v1/feedback', feedbackRoutes);
+app.use('/api/v1/notifications', notificationRoutes);
+app.use('/api/v1/audit-logs', auditLogRoutes);
+app.use('/api/v1/center', centerRoutes);
+app.use('/api/v1/ai', aiRoutes);
+app.use('/api/v1/reports', exportRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
