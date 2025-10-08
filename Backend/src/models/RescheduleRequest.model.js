@@ -24,7 +24,12 @@ const rescheduleRequestSchema = new mongoose.Schema({
     required: true 
   },
   reason: { 
-    type: String 
+    type: String,
+    maxlength: 300 
+  },
+  reviewNotes: { 
+    type: String, 
+    maxlength: 300 
   },
   status: { 
     type: String, 
@@ -35,10 +40,17 @@ const rescheduleRequestSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId, 
     ref: "Admin" 
   },
-  createdAt: { 
-    type: Date, 
-    default: Date.now 
+  auditId: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: "AuditLog" 
   }
+}, {
+  timestamps: true
 });
 
-module.exports = mongoose.model('RescheduleRequest', rescheduleRequestSchema);
+// Helpful indexes for filtering
+rescheduleRequestSchema.index({ status: 1 });
+rescheduleRequestSchema.index({ session: 1 });
+rescheduleRequestSchema.index({ requestedBy: 1 });
+
+module.exports = mongoose.model("RescheduleRequest", rescheduleRequestSchema);

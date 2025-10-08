@@ -6,22 +6,23 @@ const notificationSchema = new mongoose.Schema({
     required: true,
     refPath: 'userModel'
   },
-  role: {
+  userModel: {
     type: String,
     required: true,
     enum: ['Patient', 'Practitioner', 'Admin']
   },
-  title: {
-    type: String,
-    required: true
-  },
-  message: {
-    type: String,
-    required: true
-  },
+  title: { type: String, required: true },
+  message: { type: String, required: true },
   type: {
     type: String,
-    enum: ['session_reminder', 'booking_confirmation', 'cancellation', 'feedback_request', 'system_alert', 'promotional'],
+    enum: [
+      'session_reminder',
+      'booking_confirmation',
+      'cancellation',
+      'feedback_request',
+      'system_alert',
+      'promotional'
+    ],
     required: true
   },
   channel: {
@@ -39,7 +40,10 @@ const notificationSchema = new mongoose.Schema({
     enum: ['sent', 'delivered', 'read', 'failed'],
     default: 'sent'
   },
-  expiresAt: Date
+  scheduledFor: Date,
+  sentAt: Date,
+  expiresAt: Date,
+  data: mongoose.Schema.Types.Mixed
 }, {
   timestamps: true
 });
@@ -48,5 +52,6 @@ notificationSchema.index({ userId: 1, status: 1 });
 notificationSchema.index({ type: 1 });
 notificationSchema.index({ createdAt: -1 });
 notificationSchema.index({ scheduledFor: 1 });
+notificationSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 module.exports = mongoose.model('Notification', notificationSchema);

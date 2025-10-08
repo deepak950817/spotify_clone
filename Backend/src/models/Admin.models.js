@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+import { userMethodsPlugin } from './UserMethods';
 
 const adminSchema = new mongoose.Schema({
   name: {
@@ -33,6 +34,7 @@ const adminSchema = new mongoose.Schema({
     actions: [String] // e.g., ['create', 'read', 'update', 'delete']
   }],
   contactNumber: String,
+  refreshToken: { type: String, default: null },
   profileImage: {
     url: String,
     publicId: String
@@ -51,5 +53,8 @@ const adminSchema = new mongoose.Schema({
   timestamps: true
 });
 
+
+// attach shared auth methods
+adminSchema.plugin(userMethodsPlugin);
 
 module.exports = mongoose.model('Admin', adminSchema);
