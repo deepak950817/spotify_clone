@@ -1,52 +1,44 @@
 const mongoose = require('mongoose');
 
 const rescheduleRequestSchema = new mongoose.Schema({
-  sessionId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Session',
-    required: true
+  session: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: "Session", 
+    required: true 
   },
-  requestedBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    required: true,
-    refPath: 'requestedByModel'
+  requestedBy: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    required: true 
   },
-  requestedByModel: {
-    type: String,
-    required: true,
-    enum: ['Patient', 'Practitioner']
+  requestedByRole: { 
+    type: String, 
+    enum: ["Patient", "Practitioner"], 
+    required: true 
   },
-  requestedTo: {
-    type: mongoose.Schema.Types.ObjectId,
-    required: true,
-    refPath: 'requestedToModel'
+  oldDate: { 
+    type: Date, 
+    required: true 
   },
-  requestedToModel: {
-    type: String,
-    required: true,
-    enum: ['Patient', 'Practitioner']
+  newDate: { 
+    type: Date, 
+    required: true 
   },
-  originalTiming: {
-    start: Date,
-    end: Date
+  reason: { 
+    type: String 
   },
-  requestedTiming: {
-    start: Date,
-    end: Date
+  status: { 
+    type: String, 
+    enum: ["Pending", "Approved", "Rejected"], 
+    default: "Pending" 
   },
-  reason: String,
-  status: {
-    type: String,
-    enum: ['pending', 'approved', 'rejected', 'cancelled'],
-    default: 'pending'
+  reviewedBy: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: "Admin" 
   },
-}, {
-  timestamps: true
+  createdAt: { 
+    type: Date, 
+    default: Date.now 
+  }
 });
-
-rescheduleRequestSchema.index({ sessionId: 1 });
-rescheduleRequestSchema.index({ requestedBy: 1 });
-rescheduleRequestSchema.index({ status: 1 });
-rescheduleRequestSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model('RescheduleRequest', rescheduleRequestSchema);
