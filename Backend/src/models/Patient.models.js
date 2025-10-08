@@ -1,11 +1,9 @@
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
+import { userMethodsPlugin } from './UserMethods';
 
 const patientSchema = new mongoose.Schema({
-  name: {
-    type: String,
-    required: [true, 'Patient name is required'],
-    trim: true
-  },
+  name: { type: String, required: [true, 'Patient name is required'], trim: true },
   email: {
     type: String,
     required: [true, 'Email is required'],
@@ -20,24 +18,10 @@ const patientSchema = new mongoose.Schema({
     required: [true, 'Phone number is required'],
     match: [/^\d{10}$/, 'Please enter a valid 10-digit phone number']
   },
-  passwordHash: {
-    type: String,
-    required: [true, 'Password hash is required']
-  },
-  role: {
-    type: String,
-    default: 'patient',
-    enum: ['patient']
-  },
-  gender: {
-    type: String,
-    required: true,
-    enum: ['male', 'female', 'other']
-  },
-  dateOfBirth: {
-    type: Date,
-    required: [true, 'Date of birth is required']
-  },
+  passwordHash: { type: String, required: [true, 'Password hash is required'] },
+  role: { type: String, enum: ['patient'], default: 'patient' },
+  gender: { type: String, required: true, enum: ['male', 'female', 'other'] },
+  dateOfBirth: { type: Date, required: [true, 'Date of birth is required'] },
   medicalHistory: [{
     condition: String,
     diagnosisDate: Date,
@@ -50,7 +34,7 @@ const patientSchema = new mongoose.Schema({
     proficiencyLevel: { type: String, enum: ['beginner', 'intermediate', 'advanced'] }
   }],
   availability: [{
-    dayOfWeek: { type: Number, index: true, min: 0, max: 6 }, // 0-Sunday, 1-Monday, etc.
+    dayOfWeek: { type: Number, index: true, min: 0, max: 6 },
     startTime: String, // HH:MM format
     endTime: String,
     isActive: { type: Boolean, default: true }
@@ -67,29 +51,35 @@ const patientSchema = new mongoose.Schema({
     relationship: String,
     phone: String
   },
-  timezone: {
-    type: String,
-    default: 'Asia/Kolkata'
-  },
-  profileImage: {
-    url: String,
-    publicId: String
-  },
-  isVerified: {
-    type: Boolean,
-    default: false
-  },
-  isActive: {
-    type: Boolean,
-    default: true
-  }
+  refreshToken: { type: String, default: null },
+  timezone: { type: String, default: 'Asia/Kolkata' },
+  profileImage: { url: String, publicId: String },
+  isVerified: { type: Boolean, default: false },
+  isActive: { type: Boolean, default: true }
 }, {
-  timestamps: true
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
 });
 
-//  Indexes for better query performance
-// patientSchema.index({ email: 1 });
-// patientSchema.index({ phone: 1 });
-// patientSchema.index({ 'availability.dayOfWeek': 1 });
+patientSchema.virtual('age').get(function () {
+  if (!this.dateOfBirth) return null;
+  const diff = Date.now() - this.dateOfBirth.getTime();
+  return Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25));
+});
+
+patientSchema.pre('save', async function (next) {
+  if (!this.isModified('passwordHash')) return next();
+  this.passwordHash = await bcrypt.hash(this.passwordHash, 10);
+  next();
+});
+
+patientSchema.methods.comparePassword = async function (enteredPassword) {
+  return await bcrypt.compare(enteredPassword, this.passwordHash);
+};
+
+patientSchema.index({ 'availability.dayOfWeek': 1, isActive: 1 });
+
+patientSchema.plugin(userMethodsPlugin);
 
 module.exports = mongoose.model('Patient', patientSchema);
