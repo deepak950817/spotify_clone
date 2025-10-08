@@ -6,7 +6,9 @@ const { ApiError } = require('../utils/ApiError');
 const AuditLog = require('../models/AuditLog.models');
 
 
+
 const AI_BASE = process.env.AI_SERVICE_URL; // e.g. http://localhost:8000
+const AI_RETRAIN_API_KEY = process.env.AI_RETRAIN_API_KEY;
 
 // GET /api/ai/health
 
@@ -49,7 +51,9 @@ exports.testSlot = asyncHandler(async (req, res) => {
 exports.retrain = asyncHandler(async (req, res) => {
   if (!req.user || req.user.role !== 'admin') throw new ApiError(403, 'Admin only');
   try {
-    const r = await axios.post(`${AI_BASE}/retrain`, req.body || {}, { timeout: 10000 });
+    const r = await axios.post(`${AI_BASE}/retrain`, req.body || {}, { timeout: 10000 ,
+      headers: { "x-retrain-api-key": AI_RETRAIN_API_KEY }
+    });
     await AuditLog.create({
       userId: req.user.id, userModel: 'Admin',
       action: 'update', resourceType: 'AI', description: 'Triggered AI retrain'
