@@ -1,4 +1,4 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
 const notificationSchema = new mongoose.Schema({
   userId: {
@@ -21,7 +21,9 @@ const notificationSchema = new mongoose.Schema({
       'cancellation',
       'feedback_request',
       'system_alert',
-      'promotional'
+      'promotional',
+      'session_confirmation'
+      
     ],
     required: true
   },

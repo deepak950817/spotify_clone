@@ -62,16 +62,6 @@ const practitionerSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Password handling
-practitionerSchema.pre('save', async function (next) {
-  if (!this.isModified('passwordHash')) return next();
-  this.passwordHash = await bcrypt.hash(this.passwordHash, 10);
-  next();
-});
-
-practitionerSchema.methods.comparePassword = async function (enteredPassword) {
-  return await bcrypt.compare(enteredPassword, this.passwordHash);
-};
 
 practitionerSchema.methods.updateAverageRating = async function (newRating) {
   const total = this.ratings.average * this.ratings.count + newRating;

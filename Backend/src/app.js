@@ -59,6 +59,7 @@ app.use('/api/v1/center', centerRoutes);
 app.use('/api/v1/ai', aiRoutes);
 app.use('/api/v1/reports', exportRoutes);
 
+
 // Health check
 app.get('/api/v1/health', (req, res) => {
   res.status(200).json({

@@ -161,6 +161,8 @@ export const recommendSlots = asyncHandler(async (req, res) => {
     isActive: true
   }).lean();
 
+  console.log(practitioners)
+
   if (!practitioners.length) return res.status(200).json(new ApiResponse(200, [], 'No practitioners available'));
 
   // 2) Generate candidate slots (basic heuristic: next N days * sample hours)
@@ -257,6 +259,73 @@ export const recommendSlots = asyncHandler(async (req, res) => {
   }
 }
 
+// for (const pr of practitioners) {
+//   const workingHours = Array.isArray(pr.workingHours) ? pr.workingHours : [];
+
+//   // Keep the requested duration, fallback 60
+//   const practitionerDuration = durationMinutes || 60;
+
+//   for (let d = 0; d < (preferredDays || 3); d++) {
+//     const day = new Date(now);
+//     day.setDate(now.getDate() + d);
+//     const weekday = day.getDay(); // 0 = Sunday
+
+//     const todayHours = workingHours.find(w => w.dayOfWeek === weekday && w.isActive);
+//     if (!todayHours) continue; // skip non-working days
+
+//     const [startH, startM] = todayHours.startTime.split(':').map(Number);
+//     const [endH, endM] = todayHours.endTime.split(':').map(Number);
+
+//     const dayStart = new Date(day);
+//     dayStart.setHours(startH, startM, 0, 0);
+//     const dayEnd = new Date(day);
+//     dayEnd.setHours(endH, endM, 0, 0);
+
+//     // ⏰ Skip if day window already passed
+//     if (dayEnd < now) continue;
+
+//     // Allow a lenient overlap window (±15 minutes)
+//     const LENIENCY_MINUTES = 15;
+
+//     // Slot step size
+//     const SLOT_STEP_MINUTES = 30;
+//     let current = new Date(dayStart);
+
+//     while (current.getTime() + practitionerDuration * 60000 <= dayEnd.getTime()) {
+//       const end = new Date(current.getTime() + practitionerDuration * 60000);
+
+//       // Slightly expand search window for conflicts to be more forgiving
+//       const startCheck = new Date(current.getTime() - LENIENCY_MINUTES * 60000);
+//       const endCheck = new Date(end.getTime() + LENIENCY_MINUTES * 60000);
+
+//       // 🧠 Conflict check (lenient: small overlaps are okay)
+//       const conflict = await Session.exists({
+//         practitionerId: pr._id,
+//         // allow small overlaps by expanding the comparison window
+//         scheduledStart: { $lt: endCheck },
+//         scheduledEnd: { $gt: startCheck },
+//         status: { $in: ['booked', 'confirmed', 'rescheduled'] }
+//       });
+
+//       // Accept slot even if slight overlap or near boundary
+//       if (!conflict) {
+//         candidates.push({
+//           practitionerId: pr._id.toString(),
+//           practitionerName: pr.name,
+//           start: current.toISOString(),
+//           end: end.toISOString(),
+//           durationMinutes: practitionerDuration,
+//           centerId: pr.centerId?.toString() || null,
+//           therapyType
+//         });
+//       }
+
+//       // Move by step size (still 30 minutes)
+//       current = new Date(current.getTime() + SLOT_STEP_MINUTES * 60000);
+//     }
+//   }
+// }
+
 
   if (!candidates.length) return res.status(200).json(new ApiResponse(200, [], 'No candidate slots'));
 
@@ -271,6 +340,7 @@ export const recommendSlots = asyncHandler(async (req, res) => {
       // include any other features you want (practitioner load, patient availability, etc.)
     })) };
 
+    console.log(payload)
     const aiResp = await axios.post(`${AI_BASE}/predict_slots`, payload, { timeout: 10000 });
     const ranked = aiResp.data && (aiResp.data.recommendations || aiResp.data.top_recommendations || aiResp.data) ;
 
@@ -370,7 +440,7 @@ export const confirmBooking = asyncHandler(async (req, res) => {
 
 // GET /api/sessions/:id
 export const getSession = asyncHandler(async (req, res) => {
-  const id = req.params.id;
+  const id = req.params.Id;
   const s = await Session.findById(id).populate('patientId practitionerId');
   if (!s) throw new ApiError(404, 'Session not found');
 
@@ -409,7 +479,7 @@ export const listSessions = asyncHandler(async (req, res) => {
 
 // POST /api/sessions/:id/cancel (patient or admin)
 export const cancelSession = asyncHandler(async (req, res) => {
-  const sessionId = req.params.id;
+  const sessionId = req.params.Id;
   const session = await Session.findById(sessionId);
   if (!session) throw new ApiError(404, 'Session not found');
 
@@ -417,7 +487,7 @@ export const cancelSession = asyncHandler(async (req, res) => {
   if (req.user.role === 'patient' && session.patientId.toString() !== req.user.id) throw new ApiError(403, 'Forbidden');
 
   session.status = 'cancelled';
-  session.cancelReason = req.body.reason || 'Cancelled';
+  session.cancelReason = req.body?.reason || 'Cancelled';
   session.cancelledBy = req.user.id;
   session.cancelledAt = new Date();
   await session.save();
@@ -475,17 +545,19 @@ export const forceBookSession = asyncHandler(async (req, res) => {
   });
 
   await Notification.insertMany([
-    { userId: patientId, userModel: 'Patient', title: 'Session booked by admin', message: `Session at ${start.toISOString()}` },
-    { userId: practitionerId, userModel: 'Practitioner', title: 'Session assigned (admin)', message: `Session at ${start.toISOString()}` }
+    { userId: patientId, userModel: 'Patient',type:'booking_confirmation', title: 'Session booked by admin', message: `Session at ${start.toISOString()}` },
+    { userId: practitionerId, userModel: 'Practitioner',type:'session_confirmation' ,title:'Session assigned (admin)', message: `Session at ${start.toISOString()}` }
   ]);
+
 
   return res.status(201).json(new ApiResponse(201, { session, conflict: !!conflict }, 'Force booked'));
 });
 
+
 // Admin-only: POST /api/sessions/:id/reassign
 export const reassignPractitioner = asyncHandler(async (req, res) => {
   if (req.user.role !== 'admin') throw new ApiError(403, 'Admin only');
-  const sessionId = req.params.id;
+  const sessionId = req.params.Id;
   const { newPractitionerId } = req.body;
   const session = await Session.findById(sessionId);
   if (!session) throw new ApiError(404, 'Session not found');
@@ -507,9 +579,9 @@ export const reassignPractitioner = asyncHandler(async (req, res) => {
 
   // notify previous and new practitioner + patient
   await Notification.insertMany([
-    { userId: prev, userModel: 'Practitioner', title: 'Session reassigned', message: `A session has been reassigned` },
-    { userId: newPractitionerId, userModel: 'Practitioner', title: 'New session assigned', message: `You have been assigned a session` },
-    { userId: session.patientId, userModel: 'Patient', title: 'Practitioner reassigned', message: `Your session practitioner was changed` }
+    { userId: prev, userModel: 'Practitioner',type:"session_reminder", title: 'Session reassigned', message: `A session has been reassigned` },
+    { userId: newPractitionerId, userModel: 'Practitioner',type:"session_reminder", title: 'New session assigned', message: `You have been assigned a session` },
+    { userId: session.patientId, userModel: 'Patient',type:"session_reminder", title: 'Practitioner reassigned', message: `Your session practitioner was changed` }
   ]);
 
   res.status(200).json(new ApiResponse(200, session, 'Reassigned'));

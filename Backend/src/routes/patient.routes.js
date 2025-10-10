@@ -13,11 +13,12 @@ import {
   getProgress,
   getNotifications,
   updateProfileImage,
-  deactivateAccount
+  deactivateAccount,
+  activateAccount
 } from '../controllers/patient.controller.js';
 import { authMiddleware } from '../middleware/auth.middleware.js';
 import { roleMiddleware } from '../middleware/role.middleware.js';
-
+import { upload } from '../middleware/multer.middleware.js';
 const router = express.Router();
 
 // All routes require patient authentication
@@ -27,9 +28,9 @@ router.use(roleMiddleware(['patient']));  //dikkat pr hta denge
 // Profile routes
 router.get('/profile', getProfile);
 router.put('/profile', updateProfile);
-router.patch('/profile/image', updateProfileImage);
+router.patch('/profile/image', upload.single('profileimage'), updateProfileImage);
 router.patch('/deactivate', deactivateAccount);
-
+router.patch('/activate', activateAccount);
 // Medical history routes
 router.get('/medical-history', getMedicalHistory);
 router.put('/medical-history', updateMedicalHistory);
