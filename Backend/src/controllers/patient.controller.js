@@ -103,7 +103,7 @@ import Patient from '../models/Patient.models.js';
 import Session from '../models/Session.models.js';
 import AuditLog from '../models/AuditLog.models.js';
 import Notification from '../models/Notification.models.js';
-
+//import { uploadOnCloudinary } from  '../utils/cloudinary.js'
 export const getProfile = asyncHandler(async (req, res) => {
   const patient = await Patient.findById(req.user._id)
     .select('-passwordHash -refreshToken');
@@ -113,7 +113,7 @@ export const getProfile = asyncHandler(async (req, res) => {
   res.status(200).json(
     new ApiResponse(200, patient, "Patient profile fetched successfully")
   );
-});
+}); // patient dashboard ke liye
 
 export const updateProfile = asyncHandler(async (req, res) => {
   const { name, phone, gender, dateOfBirth, address, emergencyContact } = req.body;
@@ -365,6 +365,7 @@ export const getNotifications = asyncHandler(async (req, res) => {
   );
 });
 
+// not working proper some issue in cloudinary
 export const updateProfileImage = asyncHandler(async (req, res) => {
   if (!req.file?.path) {
     throw new ApiError(400, "Profile image is required");
@@ -418,12 +419,16 @@ export const updateProfileImage = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, patient.profileImage, "Profile image updated successfully"));
 });
+
+
 export const deactivateAccount = asyncHandler(async (req, res) => {
   const patient = await Patient.findByIdAndUpdate(
     req.user._id,
     { isActive: false },
     { new: true }
   ).select('-passwordHash -refreshToken');
+
+   if (!patient) throw new ApiError(404, "Patient not found");
 
   await AuditLog.create({
     userId: patient._id,
@@ -440,5 +445,31 @@ export const deactivateAccount = asyncHandler(async (req, res) => {
     new ApiResponse(200, patient, "Account deactivated successfully")
   );
 });
+
+export const activateAccount = asyncHandler(async (req, res) => {
+  const patient = await Patient.findByIdAndUpdate(
+    req.user._id,
+    { isActive: true },
+    { new: true }
+  ).select('-passwordHash -refreshToken');
+
+   if (!patient) throw new ApiError(404, "Patient not found");
+
+  await AuditLog.create({
+    userId: patient._id,
+    userModel: 'Patient',
+    action: 'update',
+    centerId: patient.centerId,
+    resourceType: 'Patient',
+    resourceId: patient._id,
+    description: 'Account activated',
+    ipAddress: req.ip
+  });
+
+  res.status(200).json(
+    new ApiResponse(200, patient, "Account activated successfully")
+  );
+});
+
 
 //feedback wala bhi dalna hai

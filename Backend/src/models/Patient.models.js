@@ -74,15 +74,6 @@ patientSchema.virtual('age').get(function () {
   return Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25));
 });
 
-patientSchema.pre('save', async function (next) {
-  if (!this.isModified('passwordHash')) return next();
-  this.passwordHash = await bcrypt.hash(this.passwordHash, 10);
-  next();
-});
-
-patientSchema.methods.comparePassword = async function (enteredPassword) {
-  return await bcrypt.compare(enteredPassword, this.passwordHash);
-};
 
 patientSchema.index({ 'availability.dayOfWeek': 1, isActive: 1 });
 

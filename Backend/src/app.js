@@ -59,8 +59,9 @@ app.use('/api/v1/center', centerRoutes);
 app.use('/api/v1/ai', aiRoutes);
 app.use('/api/v1/reports', exportRoutes);
 
+
 // Health check
-app.get('/health', (req, res) => {
+app.get('/api/v1/health', (req, res) => {
   res.status(200).json({
     success: true,
     message: 'Ayursutra API is running',

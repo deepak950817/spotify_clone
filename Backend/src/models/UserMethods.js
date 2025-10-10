@@ -14,6 +14,7 @@ export const userMethodsPlugin = (schema, options) => {
   // ✅ Instance method: validate password
   schema.methods.isPasswordCorrect = async function (password) {
     if (!this.passwordHash) throw new Error("No password hash found");
+    console.log("hello");
     return bcrypt.compare(password, this.passwordHash);
   };
 
